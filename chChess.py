@@ -1624,13 +1624,14 @@ class AI:
 	def __init__(self, level = 1):
 		self.level = level if type(level) == int and 0 <= level <= 10 else 1
 	def comput(self, board, direction, isEcho = True) -> tuple:
+		oriBoard = Board(board.mode, board.FEN, eaten = None) # 创建新推演局面
+		oriBoard.eaten = board.eaten[::]
+		oriBoard.uncovered = board.uncovered[::]
 		steps = Node.getAvailableCoordinatesConsideringGeneral(board.mode, board.lists[1] in "WwRr", None, board.lists[0])
 		if isEcho:
 			print("考虑将军问题时，所有可能的走法如下：")
 			print(steps)
 		if self.level == 0: # 傻瓜（只会推演一步取最有利于对方的）
-			oriBoard = Board(board.mode, board.FEN, eaten = None) # 创建新推演局面
-			oriBoard.eaten = board.eaten[::]
 			for step in steps:
 				oriBoard.generateNextBoard(step, isPrintMethod = False)
 			evaluates = [(step[-1], nextBoard.evaluate()) for step, nextBoard in zip(oriBoard.nextStep, oriBoard.next)]
@@ -1640,8 +1641,6 @@ class AI:
 		if self.level == 1: # 小白（随便走）
 			return steps[randbelow(len(steps))]
 		elif self.level == 2: # 菜鸟（只会推演一步，有吃就吃）
-			oriBoard = Board(board.mode, board.FEN, eaten = None) # 创建新推演局面
-			oriBoard.eaten = board.eaten[::]
 			for step in steps:
 				oriBoard.generateNextBoard(step, isPrintMethod = False)
 			evaluates = [(step[-1], nextBoard.evaluate()) for step, nextBoard in zip(oriBoard.nextStep, oriBoard.next)]
@@ -1649,8 +1648,6 @@ class AI:
 			evaluates = [ev for ev in evaluates if ev[1] == goodValue]
 			return evaluates[randbelow(len(evaluates))][0]
 		elif self.level == 3: # 新手（只会推演一回合）
-			oriBoard = Board(board.mode, board.FEN, eaten = None) # 创建新推演局面
-			oriBoard.eaten = board.eaten[::] if type(board.eaten) == list else None
 			evaluates = []
 			for step in steps:
 				oriBoard.generateNextBoard(step, isPrintMethod = False)
@@ -1658,31 +1655,7 @@ class AI:
 				nextSteps = Node.getAvailableCoordinatesConsideringGeneral(tmpNextBoard.mode, tmpNextBoard.lists[1] in "WwRr", None, tmpNextBoard.lists[0])
 				if nextSteps:
 					for nextStep in nextSteps:
-						try:
-							tmpNextBoard.generateNextBoard(nextStep, isPrintMethod = False)
-						except:
-							boardFEN = tmpNextBoard.FEN.split(" ")[0]
-							print(boardFEN.count("B"))
-							print(boardFEN.count("E"))
-							print(boardFEN.count("b"))
-							print(boardFEN.count("e"))
-							print(boardFEN.count("A"))
-							print(boardFEN.count("a"))
-							print(len(tmpNextBoard.lists) == 6 and len(tmpNextBoard.lists[0]) == 10 and not any([len(tmpNextBoard.lists[0][i]) != 9 for i in range(10)]))			
-							print(boardFEN.count("R") <= 2 and boardFEN.count("r") <= 2)						
-							print(boardFEN.count("N") + boardFEN.count("H") <= 2 and boardFEN.count("n") + boardFEN.count("h") <= 2)		
-							print(boardFEN.count("B") + boardFEN.count("E") <= 2 and boardFEN.count("b") + boardFEN.count("e") <= 2)		
-							print(boardFEN.count("A") <= 2 and boardFEN.count("a") <= 2)						
-							print(boardFEN.count("K") == 1 and boardFEN.count("k") == 1)						
-							print(boardFEN.count("C") <= 2 and boardFEN.count("c") <= 2)						
-							print(boardFEN.count("P") <= 5 and boardFEN.count("p") <= 5)						
-							print(len(findall("[A-Z]", boardFEN)) <= 16 and len(findall("[a-z]", boardFEN)) <= 16)				
-							print(tmpNextBoard.lists[1] in "WwRrBbGg")									
-							print(tmpNextBoard.lists[-2] >> 1 <= tmpNextBoard.lists[-1] - 1)									
-							print(tmpNextBoard.mode >> 3 or tmpNextBoard.checkChess())									
-							print(not tmpNextBoard.checkIfIsEatingGeneral())									
-							print(nextStep)
-							input()
+						tmpNextBoard.generateNextBoard(nextStep, isPrintMethod = False)
 					nextEvaluates = [(nextStep[-1], nextBoard.evaluate()) for nextStep, nextBoard in zip(tmpNextBoard.nextStep, tmpNextBoard.next)]
 					evaluates.append((step, {True:min, False:max}[direction](nextEvaluates, key = lambda x:x[1])[1]))
 				else:
