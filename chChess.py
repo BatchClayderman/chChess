@@ -1823,10 +1823,10 @@ def play(mode):
 			elif todo in ("L", "l"):
 				board.printLog()
 				continue
-			elif todo == b"S":
+			elif todo == "S":
 				board.dump(True)
 				continue
-			elif todo == b"s":
+			elif todo == "s":
 				board.dump(False)
 				continue
 			elif todo == "R":
