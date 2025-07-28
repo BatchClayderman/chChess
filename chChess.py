@@ -700,7 +700,7 @@ class Board:
 						else:
 							return (False, False, "相象不存在 " + method[1:] + " 说法，请检查。")
 					elif method1[1] in "一五九壹伍玖1１5５9９" and method1[2] in "进進退": # 唯一
-						if method1[0] in "仕士" and method1[1] == "五伍5５": # 仕士
+						if method1[0] in "仕士" and method1[1] in "五伍5５": # 仕士
 							if walker: # 仕
 								if method1[0] != "仕":
 									print("警告：指令不规范但依旧可以识别，正确的写法为“仕" + method1[1:] + "”。")
@@ -713,13 +713,13 @@ class Board:
 									print("请按任意键继续。")
 									getch()
 								p = (1, 4)
-						elif method2[0] in "相象" and walker: # 相
+						elif method1[0] in "相象" and walker: # 相
 							if method1[0] != "相":
 								print("警告：指令不规范但依旧可以识别，正确的写法为“相" + method1[1:] + "”。")
 								print("请按任意键继续。")
 								getch()
 							p = (7,  8 - ch_num_list.index(method1[1]) % 9)
-						elif method2[0] in "相象" and not walker: # 象
+						elif method1[0] in "相象" and not walker: # 象
 							if method1[0] != "象":
 								print("警告：指令不规范但依旧可以识别，正确的写法为“象" + method1[1:] + "”。")
 								print("请按任意键继续。")
@@ -1664,7 +1664,16 @@ class AI:
 			evaluates = [ev for ev in evaluates if ev[1] == goodValue]
 			return evaluates[randbelow(len(evaluates))][0]			
 		else: # 未开发
-			return steps[randbelow(len(steps))]
+			try:
+				tokens = board.FEN.split(" ")
+				if len(tokens) >= 2:
+					res = __import__("requests").get("https://www.chessdb.cn/chessdb.php?action=queryall&board={0}%20{1}".format(tokens[0], tokens[1]))
+					if 200 == res.status_code and res.text.startswith("move:"):
+						print("云库查询：\n{0}".format(res.text.replace("|", "\n").replace(",", "\t")))
+						return res.text[5:9]
+				return steps[randbelow(len(steps))]
+			except:
+				return steps[randbelow(len(steps))]
 
 def clearScreen(fakeClear = 120): # 清屏函数
 	if sys.stdin.isatty(): # 在终端
