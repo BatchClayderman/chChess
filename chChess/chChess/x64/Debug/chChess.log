@@ -1,0 +1,9 @@
+﻿  chChess.cpp
+E:\星空\Win Linux DOS团队\chChess\chChess\chChess\chChess.cpp(230,53): error C2440: “初始化”: 无法从“std::_Tree_const_iterator<std::_Tree_val<std::_Tree_simple_types<std::pair<const unsigned char,Description>>>>”转换为“std::_Tree_iterator<std::_Tree_val<std::_Tree_simple_types<std::pair<const unsigned char,Description>>>>”
+      E:\星空\Win Linux DOS团队\chChess\chChess\chChess\chChess.cpp(230,53):
+      没有可用于执行该转换的用户定义的转换运算符，或者无法调用该运算符
+  
+E:\星空\Win Linux DOS团队\chChess\chChess\chChess\chChess.cpp(246,53): error C2440: “初始化”: 无法从“std::_Tree_const_iterator<std::_Tree_val<std::_Tree_simple_types<std::pair<const unsigned char,Description>>>>”转换为“std::_Tree_iterator<std::_Tree_val<std::_Tree_simple_types<std::pair<const unsigned char,Description>>>>”
+      E:\星空\Win Linux DOS团队\chChess\chChess\chChess\chChess.cpp(246,53):
+      没有可用于执行该转换的用户定义的转换运算符，或者无法调用该运算符
+  
