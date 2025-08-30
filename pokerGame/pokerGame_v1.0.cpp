@@ -81,6 +81,7 @@ enum class TokenType
 	Septuple = 0b01110000,
 	Octuple = 0b10000000, 
 	
+	Unspecified = 0b11110000, 
 	Invalid = 0b11111111
 };
 
@@ -1539,9 +1540,9 @@ private:
 		fflush(stdin);
 		char buffer[256] = { 0 };
 		fgets(buffer, 256, stdin);
-		if ('\n' == buffer[strlen(buffer) - 1])
-			buffer[strlen(buffer) - 1] = 0;
 		description = buffer;
+		while (!description.empty() && description.back() == '\n')
+			description.pop_back();
 		return;
 	}
 	

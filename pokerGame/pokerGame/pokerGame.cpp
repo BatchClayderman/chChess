@@ -1675,9 +1675,9 @@ private:
 		fflush(stdin);
 		char buffer[256] = { 0 };
 		fgets(buffer, 256, stdin);
-		if ('\n' == buffer[strlen(buffer) - 1])
-			buffer[strlen(buffer) - 1] = 0;
 		description = buffer;
+		while (!description.empty() && description.back() == '\n')
+			description.pop_back();
 		return;
 	}
 	size_t fetchPlayerCount(size_t lowerBound, size_t upperBound) const // lowerBound cannot be 0
