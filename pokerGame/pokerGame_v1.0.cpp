@@ -264,7 +264,7 @@ protected:
 			return false; // return false if aligned
 		}
 	}
-	bool getNextPlayerID(PlayerID& playerID) const // first used in PokerGame::setLandlord
+	bool getNextPlayer(PlayerID& playerID) const // first used in PokerGame::setLandlord
 	{
 		if (++playerID >= this->players.size())
 			playerID = 0;
@@ -1175,13 +1175,13 @@ public:
 			PlayerID playerID = this->records[0].back().playerID;
 			if (b0)
 				this->records[0].push_back(Token{ playerID, vector<Card>{} });
-			this->getNextPlayerID(playerID);
+			this->getNextPlayer(playerID);
 			if (b1)
 				this->records[0].push_back(Token{ playerID, vector<Card>{} });
-			this->getNextPlayerID(playerID);
+			this->getNextPlayer(playerID);
 			if (b2)
 				this->records[0].push_back(Token{ playerID, vector<Card>{} });
-			this->getNextPlayerID(playerID);
+			this->getNextPlayer(playerID);
 			if (b3)
 				this->records[0].push_back(Token{ playerID, vector<Card>{} });
 			for (size_t idx = 0; idx < 3; ++idx)
@@ -1209,7 +1209,7 @@ public:
 					booleans[idxInner] = true;
 					++idxOuter;
 				}
-				this->getNextPlayerID(playerID);
+				this->getNextPlayer(playerID);
 			}
 			return this->setLandlord(booleans[0], booleans[1], booleans[2], booleans[3]);
 		}
@@ -1223,7 +1223,7 @@ public:
 			PlayerID playerID = this->records[0].back().playerID;
 			LandlordScore currentHighestScore = s0, landlordScores[4] = { s0, s1, s2, s3 };
 			this->records[0].back().cards = vector<Card>{ Card{ static_cast<Point>(s0) } };
-			this->getNextPlayerID(playerID);
+			this->getNextPlayer(playerID);
 			for (size_t idx = 1; idx <= 3; ++idx)
 				if (LandlordScore::Three == currentHighestScore)
 					break;
@@ -1234,7 +1234,7 @@ public:
 						currentHighestScore = landlordScores[idx];
 						this->records[0].push_back(Token{ playerID, vector<Card>{ Card{ static_cast<Point>(landlordScores[idx]) } } });
 					}
-					this->getNextPlayerID(playerID);
+					this->getNextPlayer(playerID);
 				}
 			for (size_t idx = 0; idx < 8; ++idx)
 			{
@@ -1260,7 +1260,7 @@ public:
 			else
 			{
 				playerID = token.playerID;
-				this->getNextPlayerID(playerID);
+				this->getNextPlayer(playerID);
 				this->status = Status::Started;
 			}
 			return true;
@@ -1287,7 +1287,7 @@ public:
 				else
 				{
 					playerID = token.playerID;
-					this->getNextPlayerID(playerID);
+					this->getNextPlayer(playerID);
 					return true;
 				}
 			else if (this->canCover(token, this->records.back().back()))
@@ -1303,7 +1303,7 @@ public:
 					else
 					{
 						playerID = token.playerID;
-						this->getNextPlayerID(playerID);
+						this->getNextPlayer(playerID);
 					}
 					return true;
 				}
@@ -1322,7 +1322,7 @@ public:
 					else
 					{
 						playerID = token.playerID;
-						this->getNextPlayerID(playerID);
+						this->getNextPlayer(playerID);
 					}
 					return true;
 				}
