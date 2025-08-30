@@ -21,12 +21,21 @@
 #define TIME_FOR_SLEEP 3
 #endif
 using namespace std;
+typedef unsigned char HelpKey;
+typedef unsigned char Value;
 typedef unsigned char Point;
 typedef unsigned char PlayerID;
-typedef unsigned char Value;
-typedef unsigned char Count;
 typedef unsigned char CardID;
-typedef unsigned char HelpKey;
+typedef unsigned char Count;
+
+
+enum class SortingMethod
+{
+	FromBigToSmall = 0,
+	FromSmallToBig = 1,
+	FromManyToFew = 2,
+	FromFewToMany = 3
+};
 
 
 enum class Suit
@@ -39,48 +48,39 @@ enum class Suit
 	Red = 5,
 };
 
-enum class SortingMethod
-{
-	FromBigToSmall = 0,
-	FromSmallToBig = 1,
-	FromManyToFew = 2,
-	FromFewToMany = 3
-};
-
 enum class TokenType
 {
-	Empty = 0b00000000,
-
-	Single = 0b00010000,
-	Straight = 0b00010001,
-	flush = 0b00010010,
-	flushStraight = 0b00010011,
-
-	Pair = 0b00100000,
-	PairStraight = 0b00100001,
-	PairStraightWithSingle = 0b00100010,
-	Rocket = 0b00100011,
-
-	Triple = 0b00110000,
-	TripleWithSingle = 0b00110001,
-	TripleWithPair = 0b00110010,
-	TripleWithPairSingle = 0b00110011,
-	TripleStraight = 0b00110100,
-	TripleStraightWithSingle = 0b00110101,
-	TripleStraightWithSingles = 0b00110110,
-	TripleStraightWithPairs = 0b00110111,
-
-	Quadruple‌ = 0b01000000,
-	Quadruple‌WithSingle = 0b01000001,
-	Quadruple‌WithSingleSingle = 0b01000010,
-	Quadruple‌WithPairPair = 0b01000011,
-
-	Quintuple = 0b01010000,
-	Sextuple = 0b01100000,
+	Empty = 0b00000000, 
+	
+	Single = 0b00010000, 
+	Straight = 0b00010001, 
+	flush = 0b00010010, 
+	flushStraight = 0b00010011, 
+	
+	Pair = 0b00100000, 
+	PairStraight = 0b00100001, 
+	PairStraightWithSingle = 0b00100010, 
+	Rocket = 0b00100011, 
+	
+	Triple = 0b00110000, 
+	TripleWithSingle = 0b00110001, 
+	TripleWithPair = 0b00110010, 
+	TripleWithPairSingle = 0b00110011, 
+	TripleStraight = 0b00110100, 
+	TripleStraightWithSingle = 0b00110101, 
+	TripleStraightWithSingles = 0b00110110, 
+	TripleStraightWithPairs = 0b00110111, 
+	
+	Quadruple‌ = 0b01000000, 
+	Quadruple‌WithSingle = 0b01000001, 
+	Quadruple‌WithSingleSingle = 0b01000010, 
+	Quadruple‌WithPairPair = 0b01000011, 
+	
+	Quintuple = 0b01010000, 
+	Sextuple = 0b01100000, 
 	Septuple = 0b01110000,
-	Octuple = 0b10000000,
-
-	Unspecified = 0b11110000,
+	Octuple = 0b10000000, 
+	
 	Invalid = 0b11111111
 };
 
@@ -388,6 +388,7 @@ protected:
 					token.tokenType = TokenType::TripleWithSingle;
 					token.indicator = token.cards[0];
 				}
+			/* ... */
 			default:
 				token.tokenType = TokenType::Invalid;
 			}
