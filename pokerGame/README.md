@@ -20,6 +20,8 @@ protected:
 	vector<vector<Card>> players{}; // 用于存储玩家手上的扑克牌
 	vector<Card> deck{}; // 用于存储地主牌或牌堆
 	vector<vector<Token>> records{}; // 用于存储游戏记录
+	Player currentPlayer = (Player)(-1); // 用于指示当前需要进行操作的玩家
+	Token* pLastToken = nullptr; // 用于存储指向最后一次非空 token 的指针
 	Status status = Status::Ready; // 用于存储状态
 ```
 
@@ -28,7 +30,7 @@ protected:
 1) 构造函数：初始化随机数种子，派生类中应当声明扑克牌类型，状态缺省值为 Ready。
 2) initialize：初始化 values（从 1 开始）和 players，该过程将清空 deck 和 record；该过程允许在任何状态下被调用，调用成功后，状态将变更为 Initialized；
 3) deal：发牌，该过程将利用随机数种子 seed 向 players 和 deck 随机分配扑克牌并清空 records，随后将预备回合信息写入 records[0]；该过程允许在不低于 Initialized 的状态下被调用，调用成功后，状态将变更为 Dealt（涉及地主信息）或 Assigned（不涉及地主信息）；
-4) 一些为获取当前或下一玩家和地主信息设定设立的额外函数：地主信息设定仅允许在 Dealt 状态下涉及地主信息的扑克牌类型中进行，地主信息被写入 records 后，状态将变更为 Assigned。
+4) 一些为获取当前玩家和地主信息设定设立的额外函数：地主信息设定仅允许在 Dealt 状态下涉及地主信息的扑克牌类型中进行，地主信息被写入 records[0] 后，状态将变更为 Assigned。
 5) start：开牌，该过程将依照 token 读写 records，部分扑克牌类型对开牌的 token 有特定要求；该过程仅允许在 Assigned 状态下进行，调用成功后，状态将变更为 Started。
 6) play：出牌，该过程将依照 token 读写 records；该过程仅允许在 Started 状态下进行，游戏结束后，状态将变更为 Over。
 

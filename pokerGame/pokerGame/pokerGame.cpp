@@ -27,7 +27,7 @@ using namespace std;
 typedef unsigned char HelpKey;
 typedef unsigned char Value;
 typedef unsigned char Point;
-typedef unsigned char PlayerID;
+typedef unsigned char Player;
 typedef unsigned char Count;
 
 
@@ -179,7 +179,7 @@ struct Card
 
 struct Token
 {
-	PlayerID playerID = (PlayerID)(-1);
+	Player player = (Player)(-1);
 	vector<Card> cards{};
 	TokenType tokenType = TokenType::Invalid;
 };
@@ -194,6 +194,8 @@ protected:
 	vector<vector<Card>> players{};
 	vector<Card> deck{};
 	vector<vector<Token>> records{};
+	Player currentPlayer = (Player)(-1);
+	Token* pLastToken = nullptr;
 	Status status = Status::Ready;
 	
 private:
@@ -269,9 +271,11 @@ protected:
 		{
 			this->records.push_back(vector<Token>{});
 			const size_t playerCount = this->players.size();
-			for (PlayerID playerID = 0; playerID < playerCount; ++playerID)
-				this->records[0].push_back(Token{ playerID, vector<Card>{ this->players[playerID].back() } });
+			for (Player player = 0; player < playerCount; ++player)
+				this->records[0].push_back(Token{ player, vector<Card>{ this->players[player].back() } });
 			sort(this->records[0].begin(), this->records[0].end(), [this](Token a, Token b) { return this->values[a.cards.back().point] > this->values[b.cards.back().point] || (this->values[a.cards.back().point] == this->values[b.cards.back().point] && a.cards.back().suit > b.cards.back().suit); });
+			this->currentPlayer = this->records[0].back().player;
+			this->pLastToken = &this->records[0].back();
 			this->status = Status::Assigned;
 			return true;
 		}
@@ -279,11 +283,42 @@ protected:
 			return false;
 	}
 	
+	/* PokerGame::setLandlord */
+	virtual bool nextPlayer()
+	{
+		const size_t playerCount = this->players.size();
+		if (this->currentPlayer < playerCount)
+		{
+			if (++this->currentPlayer >= playerCount) // This works correctly even though player is 255. 
+				this->currentPlayer = 0;
+			return true;
+		}
+		else
+			return false;
+	}
+	virtual bool getLastEffectivePlayer(Player& player) const final
+	{
+		if (this->records.empty() || this->records.back().empty())
+			return false;
+		else
+		{
+			for (vector<Token>::const_reverse_iterator it = this->records.back().rbegin(); it != this->records.back().rend(); ++it)
+				if (it->player >= this->players.size())
+					return false;
+				else if (!it->cards.empty())
+				{
+					player = it->player;
+					return true;
+				}
+			return false;
+		}
+	}
+	
 	/* PokerGame::start and PokerGame::play */
 	virtual bool description2token(const string& description, Token& token) const final
 	{
-		const PlayerID playerID = token.playerID;
-		if (0 <= playerID && playerID < this->players.size() && !this->players[playerID].empty())
+		const Player player = token.player;
+		if (0 <= player && player < this->players.size() && !this->players[player].empty())
 			if ("" == description || "/" == description || "-" == description || "--" == description || "要不起" == description || "不出" == description || "不打" == description)
 			{
 				token.cards.clear();
@@ -427,15 +462,15 @@ protected:
 				}
 				if (waitingForAPoint)
 					fuzzySuits.push_back(suit);
-				const size_t length = this->players[playerID].size();
+				const size_t length = this->players[player].size();
 				size_t position = 0;
 				for (const Card& card : exactCards) // select the rightmost one
 				{
 					bool flag = false;
 					for (size_t idx = 0; idx < length; ++idx)
-						if (this->values[this->players[playerID][idx].point] > this->values[card.point])
+						if (this->values[this->players[player][idx].point] > this->values[card.point])
 							continue;
-						else if (this->players[playerID][idx] == card && find(selected.begin(), selected.end(), idx) == selected.end())
+						else if (this->players[player][idx] == card && find(selected.begin(), selected.end(), idx) == selected.end())
 						{
 							position = idx;
 							flag = true;
@@ -451,9 +486,9 @@ protected:
 				{
 					bool flag = false;
 					for (size_t idx = 0; idx < length; ++idx)
-						if (this->values[this->players[playerID][idx].point] > this->values[point])
+						if (this->values[this->players[player][idx].point] > this->values[point])
 							continue;
-						else if (this->players[playerID][idx].point == point)
+						else if (this->players[player][idx].point == point)
 						{
 							if (find(selected.begin(), selected.end(), idx) == selected.end())
 							{
@@ -472,7 +507,7 @@ protected:
 				{
 					bool flag = false;
 					for (size_t idx = length - 1; idx > 0; --idx)
-						if (this->players[playerID][idx].suit == s && find(selected.begin(), selected.end(), idx) == selected.end())
+						if (this->players[player][idx].suit == s && find(selected.begin(), selected.end(), idx) == selected.end())
 						{
 							position = idx;
 							flag = true;
@@ -480,24 +515,28 @@ protected:
 						}
 					if (flag)
 						selected.push_back(position);
-					else if (this->players[playerID][0].suit == s) // avoid (size_t)(-1)
+					else if (this->players[player][0].suit == s) // avoid (size_t)(-1)
 						selected.push_back(0);
 					else
 						return false;
 				}
 				token.cards.clear();
 				for (const size_t& p : selected)
-					token.cards.push_back(this->players[playerID][p]);
+					token.cards.push_back(this->players[player][p]);
 				return true;
 			}
 		else
 			return false;
 	}
-	virtual bool processToken(Token& token) const = 0;
+	virtual bool processToken(Token& token) const /////
+	{
+		UNREFERENCED_PARAMETER(token); /////
+		return false;
+	}
 	virtual bool removeCards(const vector<Card>& _smallerCards, vector<Card>& largerCards) const final // The vector ``largerCards`` must have been sorted according to the default sorting method. 
 	{
 		vector<Card> smallerCards = vector<Card>(_smallerCards);
-		this->sortCards(smallerCards, SortingMethod::FromBigToSmall);
+		this->sortCards(smallerCards);
 		const size_t smallerLength = smallerCards.size(), largerLength = largerCards.size();
 		if (smallerLength > largerLength || 0 == largerLength)
 			return false;
@@ -523,7 +562,19 @@ protected:
 		else
 			return true;
 	}
-	virtual bool canCover(const Token& currentToken, const Token& previousToken) const = 0;
+	virtual bool isOver() const
+	{
+		if (this->status >= Status::Started)
+			for (const vector<Card>& cards : this->players)
+				if (cards.empty())
+					return true;
+		return false;
+	}
+	virtual bool canCover(const Token& currentToken) const /////
+	{
+		UNREFERENCED_PARAMETER(currentToken); /////
+		return false;
+	}
 	
 	/* PokerGame::display */
 	virtual string cards2string(const vector<Card>& cards, const string& prefix, const string& separator, const string& suffix, const string& returnIfEmpty) const final
@@ -576,8 +627,8 @@ protected:
 			}
 			cout << "）" << endl << endl;
 			const size_t playerCount = this->players.size();
-			for (PlayerID playerID = 0; playerID < playerCount; ++playerID)
-				cout << "玩家 " << (playerID + 1) << (!this->records.empty() && !this->records[0].empty() && this->records[0].back().playerID == playerID ? "（" + dealerRemark + "）" : "：") << endl << this->cards2string(this->players[playerID], "", " | ", "", "（空）") << endl << endl;
+			for (Player player = 0; player < playerCount; ++player)
+				cout << "玩家 " << (player + 1) << (!this->records.empty() && !this->records[0].empty() && this->records[0].back().player == player ? "（" + dealerRemark + "）" : "：") << endl << this->cards2string(this->players[player], "", " | ", "", "（空）") << endl << endl;
 			cout << deckDescription;
 			if (this->status >= Status::Assigned && !this->records.empty())
 			{
@@ -591,10 +642,10 @@ protected:
 						cout << "（无）" << endl;
 					else
 					{
-						cout << this->cards2string(this->records[round][0].cards, "", "+", "", "（空）") << "（玩家 " << (this->records[round][0].playerID + 1) << "）";
+						cout << this->cards2string(this->records[round][0].cards, "", "+", "", "要不起") << "（玩家 " << (this->records[round][0].player + 1) << "）";
 						const size_t tokenCount = this->records[round].size();
 						for (size_t tokenID = 1; tokenID < tokenCount; ++tokenID)
-							cout << " -> " << this->cards2string(this->records[round][tokenID].cards, "", "+", "", "（空）") << "（玩家 " << (this->records[round][tokenID].playerID + 1) << "）";
+							cout << " -> " << this->cards2string(this->records[round][tokenID].cards, "", "+", "", "要不起") << "（玩家 " << (this->records[round][tokenID].player + 1) << "）";
 						cout << endl;
 					}
 				}
@@ -610,7 +661,7 @@ protected:
 	}
 	
 public:
-	PokerGame() // seed and pokerType
+	PokerGame() // seed, pokerType, and status = Status::Ready
 	{
 		random_device rd;
 		mt19937 g(rd());
@@ -618,211 +669,92 @@ public:
 	}
 	virtual ~PokerGame()
 	{
-
+		
 	}
-	virtual bool initialize() = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), and records (clear)
-	virtual bool initialize(const size_t playerCount) = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), and records (clear)
-	virtual bool deal() = 0; // players, deck, and records (clear) -> records[0]
-	virtual bool getLastEffectivePlayer(PlayerID& playerID) const final // const
+	virtual bool initialize() = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), records (clear), currentPlayer (reset), pLastToken (reset), and status = Status::Initialized
+	virtual bool initialize(const size_t playerCount) = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), records (clear), currentPlayer (reset), pLastToken (reset), and status = Status::Initialized
+	virtual bool deal() = 0; // players, deck, records (clear) -> records[0] (clear), currentPlayer, pLastToken, and status = Status::Dealt | Status::Assigned
+	virtual bool getCurrentPlayer(Player& player) const final // const
 	{
-		if (this->records.empty() || this->records.back().empty())
-			return false;
-		else
+		if (Status::Dealt <= this->status && this->status <= Status::Started && this->currentPlayer < this->players.size())
 		{
-			for (vector<Token>::reverse_iterator it = this->records.back().rbegin(); it != this->records.back().rend(); ++it)
-				if (it->playerID >= this->players.size())
-					return false;
-				else if (!it->cards.empty())
-				{
-					playerID = this->records.back().back().playerID;
-					return true;
-				}
-			return false;
-		}
-	}
-	virtual bool getNextPlayer(PlayerID& playerID) const // const
-	{
-		if (this->players.empty())
-			return false;
-		else
-		{
-			if (++playerID >= this->players.size()) // This works correctly even though playerID is 255. 
-				playerID = 0;
-			return true;
-		}
-	}
-	virtual bool setLandlord(bool b0, bool b1, bool b2, bool b3) // records
-	{
-		UNREFERENCED_PARAMETER(b0);
-		UNREFERENCED_PARAMETER(b1);
-		UNREFERENCED_PARAMETER(b2);
-		UNREFERENCED_PARAMETER(b3);
-		return false;
-	}
-	virtual bool setLandlord(const vector<PlayerID>& playerIDs) // records
-	{
-		UNREFERENCED_PARAMETER(playerIDs);
-		return false;
-	}
-	virtual bool setLandlord(LandlordScore s0, LandlordScore s1, LandlordScore s2, LandlordScore s3) // records
-	{
-		UNREFERENCED_PARAMETER(s0);
-		UNREFERENCED_PARAMETER(s1);
-		UNREFERENCED_PARAMETER(s2);
-		UNREFERENCED_PARAMETER(s3);
-		return false;
-	}
-	virtual bool start(Token& token, PlayerID& playerID) // records
-	{
-		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty() && token.playerID == this->records[0].back().playerID && !token.cards.empty() && (this->records[0].back().cards.size() == 1 && find(token.cards.begin(), token.cards.end(), this->records[0].back().cards[0]) != token.cards.end()) && this->processToken(token) && this->removeCards(token.cards, this->players[token.playerID]))
-		{
-			this->records.push_back(vector<Token>{ token });
-			if (this->players[playerID].empty())
-			{
-				playerID = (PlayerID)(-1);
-				this->status = Status::Over;
-			}
-			else
-			{
-				playerID = token.playerID;
-				this->getNextPlayer(playerID);
-				this->status = Status::Started;
-			}
+			player = this->currentPlayer;
 			return true;
 		}
 		else
 			return false;
 	}
-	bool start(const string& description, PlayerID& playerID) // records
-	{
-		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty())
-		{
-			Token token{ this->records[0].back().playerID, vector<Card>{} };
-			return this->description2token(description, token) ? this->start(token, playerID) : false;
-		}
-		else
-			return false;
-	}
-	bool play(Token& token, PlayerID& playerID) // records
-	{
-		if (Status::Started == this->status && this->records.size() >= 2 && !this->records.back().empty() && this->processToken(token))
-			if (TokenType::Empty == token.tokenType)
-				if (token.playerID == this->records.back().back().playerID) // the starter for the new round
-					return false;
-				else
-				{
-					playerID = token.playerID;
-					this->getNextPlayer(playerID);
-					return true;
-				}
-			else if (this->canCover(token, this->records.back().back()))
-				if (this->removeCards(token.cards, this->players[token.playerID]))
-				{
-					this->records.back().push_back(token);
-					if (this->players[playerID].empty())
-					{
-						playerID = (PlayerID)(-1);
-						this->status = Status::Over;
-					}
-					else
-					{
-						playerID = token.playerID;
-						this->getNextPlayer(playerID);
-					}
-					return true;
-				}
-				else
-					return false;
-			else if (token.playerID == this->records.back().back().playerID)
-				if (this->removeCards(token.cards, this->players[token.playerID]))
-				{
-					this->records.push_back(vector<Token>{ token }); // new round
-					if (this->players[playerID].empty())
-					{
-						playerID = (PlayerID)(-1);
-						this->status = Status::Over;
-					}
-					else
-					{
-						playerID = token.playerID;
-						this->getNextPlayer(playerID);
-					}
-					return true;
-				}
-				else
-					return false;
-			else
-				return false;
-		else
-			return false;
-	}
-	bool play(const string& description, const PlayerID inputPlayerID, PlayerID& outputPlayerID) // records
-	{
-		if (Status::Started == this->status)
-		{
-			Token token{ inputPlayerID, vector<Card>{} };
-			return this->description2token(description, token) ? this->play(token, outputPlayerID) : false;
-		}
-		else
-			return false;
-	}
-
-	//virtual bool set() = 0; // values, players, deck, and records
+	virtual bool setLandlord(const bool b) { UNREFERENCED_PARAMETER(b); return false; } // records[0], currentPlayer, pLastToken, and status = Status::Assigned
+	virtual bool setLandlord(const LandlordScore landlordScore) { UNREFERENCED_PARAMETER(landlordScore); return false; } // records[0], currentPlayer, pLastToken, and status = Status::Assigned
+	//virtual bool set() = 0; // values, players, deck, records, currentPlayer, pLastToken, and status
 	virtual void display() const = 0; // const
 };
 
-class Landlords : public PokerGame
+class Landlords : public PokerGame /*  Next: Landlords4P */
 {
 private:
 	bool assignDealer() override final
 	{
 		if (Status::Dealt == this->status && this->records.empty())
 		{
+			this->records.push_back(vector<Token>{});
 			uniform_int_distribution<size_t> distribution(0, this->players.size() - 1);
-			const PlayerID playerID = (PlayerID)(distribution(this->seed));
-			this->records.push_back(vector<Token>{ Token{ playerID, vector<Card>{ Card{} } }});
+			this->currentPlayer = (Player)(distribution(this->seed));
+			this->pLastToken = nullptr;
 			return true;
 		}
 		else
 			return false;
 	}
+	/*bool processToken(Token& token) const override final
+	{
+		return true;
+	}
+	bool canCover(const Token& currentToken) const override final
+	{
+		return true;
+	}*/
 	string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
 			return "暂无预备回合信息。";
 		else
 		{
-			string preRoundString = "";
-			char playerIDBuffer[4] = { 0 };
-			switch (this->records[0].size())
+			Count callerAndRobberCount = 0;
+			const size_t length = this->records[0].size();
+			for (size_t idx = 0; idx < length; ++idx)
+				if (!this->records[0][idx].cards.empty())
+					++callerAndRobberCount;
+			char playerBuffer[4] = { 0 };
+			switch (callerAndRobberCount)
 			{
 			case 5:
 			{
+				string preRoundString = "";
 				bool isRobbing = false;
 				for (size_t idx = 1; idx <= 4; ++idx)
 				{
-					snprintf(playerIDBuffer, 4, "%d", this->records[0][idx].playerID + 1);
+					snprintf(playerBuffer, 4, "%d", this->records[0][idx].player + 1);
 					if (this->records[0][idx].cards.empty())
-						preRoundString += (isRobbing ? "不抢（玩家 " : "不叫（玩家 ") + (string)playerIDBuffer + "） -> ";
+						preRoundString += (isRobbing ? "不抢（玩家 " : "不叫（玩家 ") + (string)playerBuffer + "） -> ";
 					else if (isRobbing)
-						preRoundString += "抢地主（玩家 " + (string)playerIDBuffer + "） -> ";
+						preRoundString += "抢地主（玩家 " + (string)playerBuffer + "） -> ";
 					else
 					{
-						preRoundString += "叫地主（玩家 " + (string)playerIDBuffer + "） -> ";
+						preRoundString += "叫地主（玩家 " + (string)playerBuffer + "） -> ";
 						isRobbing = true;
 					}
 				}
 				preRoundString.erase(preRoundString.length() - 4, 4);
-				break;
+				return preRoundString;
 			}
 			case 1:
-				snprintf(playerIDBuffer, 4, "%d", (this->records[0][0].playerID + 1));
-				preRoundString += "无人叫地主，强制玩家 " + (string)playerIDBuffer + " 为地主。";
+				snprintf(playerBuffer, 4, "%d", (this->records[0][0].player + 1));
+				return "无人叫地主，强制玩家 " + (string)playerBuffer + " 为地主。";
 				break;
 			default:
 				return "预备回合信息检验异常。";
 			}
-			return preRoundString;
 		}
 	}
 	
@@ -844,6 +776,8 @@ public:
 			this->players = vector<vector<Card>>(3);
 			this->deck.clear();
 			this->records.clear();
+			this->currentPlayer = (Player)(-1);
+			this->pLastToken = nullptr;
 			this->status = Status::Initialized;
 			return true;
 		}
@@ -858,15 +792,15 @@ public:
 			this->deck.clear();
 			this->add54CardsToDeck();
 			shuffle(this->deck.begin(), this->deck.end(), this->seed);
-			for (PlayerID playerID = 0; playerID < 3; ++playerID)
+			for (Player player = 0; player < 3; ++player)
 			{
-				this->players[playerID] = vector<Card>(17);
+				this->players[player] = vector<Card>(17);
 				for (size_t idx = 0; idx < 17; ++idx)
 				{
-					this->players[playerID][idx] = this->deck.back();
+					this->players[player][idx] = this->deck.back();
 					this->deck.pop_back();
 				}
-				this->sortCards(this->players[playerID]);
+				this->sortCards(this->players[player]);
 			}
 			this->records.clear();
 			this->status = Status::Dealt;
@@ -876,54 +810,77 @@ public:
 		else
 			return false;
 	}
-	bool setLandlord(bool b0, bool b1, bool b2, bool b3) override final
+	bool setLandlord(const bool b) override final
 	{
-		if (Status::Dealt == this->status && this->records.size() == 1 && this->records[0].size() == 1 && this->records[0][0].cards.size() == 1 && this->players.size() == 3)
-		{
-			PlayerID playerID = this->records[0][0].playerID;
-			if (!(b0 || b1 || b2 || b3))
+		if (Status::Dealt == this->status && this->records.size() == 1 && this->currentPlayer < this->players.size())
+			switch (this->records[0].size())
+			{
+			case 1:
+			case 2:
+				this->records[0].push_back(Token{ this->currentPlayer, b ? vector<Card>{ Card{} } : vector<Card>{} });
+				this->nextPlayer();
 				return true;
-			else
+			case 3:
 			{
-				this->records[0].push_back(Token{ playerID, b0 ? vector<Card>{ Card{} } : vector<Card>{} });
-				this->getNextPlayer(playerID);
-				this->records[0].push_back(Token{ playerID, b1 ? vector<Card>{ Card{} } : vector<Card>{} });
-				this->getNextPlayer(playerID);
-				this->records[0].push_back(Token{ playerID, b2 ? vector<Card>{ Card{} } : vector<Card>{} });
-				this->getNextPlayer(playerID);
-				this->records[0].push_back(Token{ playerID, b3 ? vector<Card>{ Card{} } : vector<Card>{} });
+				this->records[0].push_back(Token{ this->currentPlayer, b ? vector<Card>{ Card{} } : vector<Card>{} });
+				Count callerAndRobberCount = 0;
+				for (size_t idx = 1; idx <= 3; ++idx)
+					if (!this->records[0][idx].cards.empty())
+						++callerAndRobberCount;
+				if (callerAndRobberCount)
+				{
+					for (size_t idx = 1; idx <= 3; ++idx)
+						if (!this->records[0][idx].cards.empty())
+							switch (callerAndRobberCount)
+							{
+							case 1:
+								this->currentPlayer = this->records[0][idx].player;
+								this->status = Status::Assigned;
+								return true;
+							case 2:
+							case 3:
+								this->currentPlayer = this->records[0][idx].player;
+								return true;
+							default:
+								return false;
+							}
+					return false;
+				}
+				else
+				{
+					this->currentPlayer = this->records[0][0].player;
+					this->status = Status::Assigned;
+					return true;
+				}
 			}
-			if (this->getLastEffectivePlayer(playerID))
-			{
-				for (size_t idx = 0; idx < 3; ++idx)
-					this->players[playerID].push_back(this->deck[idx]);
-				this->sortCards(this->players[playerID]);
+			case 4:
+				this->records[0].push_back(Token{ this->currentPlayer, b ? vector<Card>{ Card{} } : vector<Card>{} });
+				this->getLastEffectivePlayer(this->currentPlayer);
 				this->status = Status::Assigned;
 				return true;
-			}
-			else
+			default:
 				return false;
-		}
+			}
 		else
 			return false;
 	}
-	bool setLandlord(const vector<PlayerID>& playerIDs) override final
+	bool start(Token& token, Player& player) override final
 	{
-		const size_t playerCount = this->players.size(), length = playerIDs.size();
-		if (Status::Dealt == this->status && this->records.size() == 1 && this->records[0].size() == 1 && 3 == playerCount && length <= 4)
+		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty() && token.player < this->players.size() && this->getLastEffectivePlayer(lastEffectivePlayer) && token.player == lastEffectivePlayer && !token.cards.empty() && this->processToken(token) && this->removeCards(token.cards, this->players[token.player]))
 		{
-			PlayerID playerID = this->records[0].back().playerID;
-			bool booleans[4] = { false };
-			for (size_t idxInner = 0, idxOuter = 0; idxInner < playerCount && idxOuter < length; ++idxInner)
+			this->records.push_back(vector<Token>{ token });
+			if (this->isOver())
 			{
-				if (playerIDs[idxOuter] == playerID)
-				{
-					booleans[idxInner] = true;
-					++idxOuter;
-				}
-				this->getNextPlayer(playerID);
+				player = (Player)(-1);
+				this->status = Status::Over;
 			}
-			return this->setLandlord(booleans[0], booleans[1], booleans[2], booleans[3]);
+			else
+			{
+				player = token.player;
+				this->nextPlayer();
+				this->status = Status::Started;
+			}
+			return true;
 		}
 		else
 			return false;
@@ -938,21 +895,30 @@ public:
 	}
 };
 
-class Landlords4P : public PokerGame
+class Landlords4P : public PokerGame /* Previous: Landlords | Next: BigTwo */
 {
 private:
 	bool assignDealer() override final
 	{
 		if (Status::Dealt == this->status && this->records.empty())
 		{
+			this->records.push_back(vector<Token>{});
 			uniform_int_distribution<size_t> distribution(0, this->players.size() - 1);
-			const PlayerID playerID = (PlayerID)(distribution(this->seed));
-			this->records.push_back(vector<Token>{ Token{ playerID, vector<Card>{ Card{} } }});
+			this->currentPlayer = (Player)(distribution(this->seed));
+			this->pLastToken = nullptr;
 			return true;
 		}
 		else
 			return false;
 	}
+	/*bool processToken(Token& token) const override final
+	{
+		return true;
+	}
+	bool canCover(const Token& currentToken) const override final
+	{
+		return true;
+	}*/
 	string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
@@ -960,25 +926,25 @@ private:
 		else
 		{
 			string preRoundString = "";
-			char playerIDBuffer[4] = { 0 }, landlordScoreBuffer[4] = { 0 };
+			char playerBuffer[4] = { 0 }, landlordScoreBuffer[4] = { 0 };
 			const size_t length = this->records[0].size();
 			if (length >= 2)
 			{
 				for (const Token& token : this->records[0])
 					if (token.cards.size() == 1)
 					{
-						snprintf(playerIDBuffer, 4, "%d", token.playerID + 1);
+						snprintf(playerBuffer, 4, "%d", token.player + 1);
 						switch (token.cards[0].point)
 						{
 						case 0:
-							preRoundString += "不叫（玩家 " + (string)playerIDBuffer + "） -> ";
+							preRoundString += "不叫（玩家 " + (string)playerBuffer + "） -> ";
 							break;
 						case 1:
 						case 2:
 						case 3:
 						{
 							snprintf(landlordScoreBuffer, 4, "%d", token.cards[0].point);
-							preRoundString += (string)landlordScoreBuffer + "分（玩家 " + playerIDBuffer + "） -> ";
+							preRoundString += (string)landlordScoreBuffer + "分（玩家 " + playerBuffer + "） -> ";
 							break;
 						}
 						default:
@@ -991,14 +957,14 @@ private:
 			}
 			else if (1 == length && this->records[0][0].cards.size() == 1)
 			{
-				snprintf(playerIDBuffer, 4, "%d", (this->records[0][0].playerID + 1));
+				snprintf(playerBuffer, 4, "%d", (this->records[0][0].player + 1));
 				if (this->records[0][0].cards[0].point)
 				{
 					snprintf(landlordScoreBuffer, 4, "%d", this->records[0].back().cards[0].point);
-					preRoundString += (string)landlordScoreBuffer + "分（玩家 " + playerIDBuffer + "）";
+					preRoundString += (string)landlordScoreBuffer + "分（玩家 " + playerBuffer + "）";
 				}
 				else
-					preRoundString += "无人叫地主，强制玩家 " + (string)playerIDBuffer + " 为地主。";
+					preRoundString += "无人叫地主，强制玩家 " + (string)playerBuffer + " 为地主。";
 			}
 			else
 				preRoundString = "预备回合信息检验异常。";
@@ -1024,6 +990,8 @@ public:
 			this->players = vector<vector<Card>>(4);
 			this->deck.clear();
 			this->records.clear();
+			this->currentPlayer = (Player)(-1);
+			this->pLastToken = nullptr;
 			this->status = Status::Initialized;
 			return true;
 		}
@@ -1039,15 +1007,15 @@ public:
 			this->add54CardsToDeck();
 			this->add54CardsToDeck();
 			shuffle(this->deck.begin(), this->deck.end(), this->seed);
-			for (PlayerID playerID = 0; playerID < 4; ++playerID)
+			for (Player player = 0; player < 4; ++player)
 			{
-				this->players[playerID] = vector<Card>(25);
+				this->players[player] = vector<Card>(25);
 				for (size_t idx = 0; idx < 25; ++idx)
 				{
-					this->players[playerID][idx] = this->deck.back();
+					this->players[player][idx] = this->deck.back();
 					this->deck.pop_back();
 				}
-				this->sortCards(this->players[playerID]);
+				this->sortCards(this->players[player]);
 			}
 			this->records.clear();
 			this->status = Status::Dealt;
@@ -1057,30 +1025,89 @@ public:
 		else
 			return false;
 	}
-	bool setLandlord(LandlordScore s0, LandlordScore s1, LandlordScore s2, LandlordScore s3) override final
+	bool setLandlord(const LandlordScore landlordScore) override final
 	{
-		if (Status::Dealt == this->status && this->records.size() == 1 && this->records[0].size() == 1 && this->records[0][0].cards.size() == 1 && this->players.size() == 4)
-		{
-			PlayerID playerID = this->records[0].back().playerID;
-			LandlordScore currentHighestScore = s0, landlordScores[4] = { s0, s1, s2, s3 };
-			this->records[0][0].cards[0].point = static_cast<Point>(s0);
-			this->getNextPlayer(playerID);
-			for (size_t idx = 1; idx <= 3; ++idx)
-				if (LandlordScore::Three == currentHighestScore)
-					break;
-				else
+		const Point point = static_cast<Point>(landlordScore);
+		if (Status::Dealt == this->status && this->records.size() == 1 && this->currentPlayer < this->players.size())
+			switch (this->records[0].size())
+			{
+			case 0:
+				switch (landlordScore)
 				{
-					if (currentHighestScore < landlordScores[idx])
-					{
-						currentHighestScore = landlordScores[idx];
-						this->records[0].push_back(Token{ playerID, vector<Card>{ Card{ static_cast<Point>(landlordScores[idx]) } } });
-					}
-					this->getNextPlayer(playerID);
+				case LandlordScore::None:
+					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{} });
+					this->nextPlayer();
+					this->pLastToken = &this->records[0][0];
+					return true;
+				case LandlordScore::One:
+				case LandlordScore::Two:
+					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{ point } } });
+					this->nextPlayer();
+					this->pLastToken = &this->records[0][0];
+					return true;
+				case LandlordScore::Three:
+					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{ point } } });
+					this->pLastToken = &this->records[0][0];
+					return true;
 				}
-			for (size_t idx = 0; idx < 8; ++idx)
-				this->players[this->records[0].back().playerID].push_back(this->deck[idx]);
-			this->sortCards(this->players[this->records[0].back().playerID]);
-			this->status = Status::Assigned;
+			case 1:
+				{
+					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{ point } } });
+					if (LandlordScore::Three == landlordScore)
+						this->status = Status::Assigned;
+					else
+						this->nextPlayer();
+					return true;
+				}
+				else
+					return false;
+			case 2:
+				if (this->records[0][1].cards.size() == 1 && (LandlordScore::None == landlordScore || point > this->records[0][1].cards[0].point))
+				{
+					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{ point } } });
+					if (LandlordScore::Three == landlordScore)
+						this->status = Status::Assigned;
+					else
+						this->nextPlayer();
+					return true;
+				}
+				else
+					return false;
+			case 3:
+				if (this->records[0][2].cards.size() == 1 && (LandlordScore::None == landlordScore || point > this->records[0][2].cards[0].point))
+				{
+					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{ point } } });
+					if (LandlordScore::Three == landlordScore)
+						this->status = Status::Assigned;
+					else
+						this->getLastEffectivePlayer(this->currentPlayer);
+					return true;
+				}
+				else
+					return false;
+			default:
+				return false;
+			}
+		else
+			return false;
+	}
+	bool start(Token& token, Player& player) override final
+	{
+		Player lastEffectivePlayer = 0;
+		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty() && token.player < this->players.size() && this->getLastEffectivePlayer(lastEffectivePlayer) && token.player == lastEffectivePlayer && !token.cards.empty() && this->processToken(token) && this->removeCards(token.cards, this->players[token.player]))
+		{
+			this->records.push_back(vector<Token>{ token });
+			if (this->isOver())
+			{
+				player = (Player)(-1);
+				this->status = Status::Over;
+			}
+			else
+			{
+				player = token.player;
+				this->nextPlayer(player);
+				this->status = Status::Started;
+			}
 			return true;
 		}
 		else
@@ -1096,9 +1123,17 @@ public:
 	}
 };
 
-class BigTwo : public PokerGame
+class BigTwo : public PokerGame /* Previous: Landlords4P | Next: ThreeTwoOne */
 {
 private:
+	/*bool processToken(Token& token) const override final
+	{
+		return true;
+	}
+	bool canCover(const Token& currentToken) const override final
+	{
+		return true;
+	}*/
 	string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
@@ -1106,11 +1141,11 @@ private:
 		else
 		{
 			string preRoundString = "";
-			char playerIDBuffer[4] = { 0 };
+			char playerBuffer[4] = { 0 };
 			if (this->records[0].back().cards.size() == 1 && 1 == this->values[this->records[0].back().cards[0].point] && Suit::Diamond == this->records[0].back().cards[0].suit)
 			{
-				snprintf(playerIDBuffer, 4, "%d", this->records[0].back().playerID + 1);
-				preRoundString = "玩家 " + (string)playerIDBuffer + " 拥有最小的牌（" + (string)this->records[0].back().cards[0] + "），拥有发牌权。";
+				snprintf(playerBuffer, 4, "%d", this->records[0].back().player + 1);
+				preRoundString = "玩家 " + (string)playerBuffer + " 拥有最小的牌（" + (string)this->records[0].back().cards[0] + "），拥有发牌权。";
 			}
 			else
 				preRoundString = "预备回合信息检验异常。";
@@ -1135,6 +1170,8 @@ public:
 			this->players = vector<vector<Card>>(4);
 			this->deck.clear();
 			this->records.clear();
+			this->currentPlayer = (Player)(-1);
+			this->pLastToken = nullptr;
 			this->status = Status::Initialized;
 			return true;
 		}
@@ -1149,15 +1186,15 @@ public:
 			this->deck.clear();
 			this->add52CardsToDeck();
 			shuffle(this->deck.begin(), this->deck.end(), this->seed);
-			for (PlayerID playerID = 0; playerID < 4; ++playerID)
+			for (Player player = 0; player < 4; ++player)
 			{
-				this->players[playerID] = vector<Card>(13);
+				this->players[player] = vector<Card>(13);
 				for (size_t idx = 0; idx < 13; ++idx)
 				{
-					this->players[playerID][idx] = this->deck.back();
+					this->players[player][idx] = this->deck.back();
 					this->deck.pop_back();
 				}
-				this->sortCards(this->players[playerID]);
+				this->sortCards(this->players[player]);
 			}
 			this->records.clear();
 			this->status = Status::Dealt;
@@ -1174,9 +1211,17 @@ public:
 	}
 };
 
-class ThreeTwoOne : public PokerGame
+class ThreeTwoOne : public PokerGame /* Previous: BigTwo | Next: Wuguapi */
 {
 private:
+	/*bool processToken(Token& token) const override final
+	{
+		return true;
+	}
+	bool canCover(const Token& currentToken) const override final
+	{
+		return true;
+	}*/
 	string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
@@ -1184,11 +1229,11 @@ private:
 		else
 		{
 			string preRoundString = "";
-			char playerIDBuffer[4] = { 0 };
+			char playerBuffer[4] = { 0 };
 			if (this->records[0].back().cards.size() == 1 && 1 == this->values[this->records[0].back().cards[0].point] && Suit::Diamond == this->records[0].back().cards[0].suit)
 			{
-				snprintf(playerIDBuffer, 4, "%d", this->records[0].back().playerID + 1);
-				preRoundString = "玩家 " + (string)playerIDBuffer + " 拥有最小的牌（" + (string)this->records[0].back().cards[0] + "），拥有发牌权。";
+				snprintf(playerBuffer, 4, "%d", this->records[0].back().player + 1);
+				preRoundString = "玩家 " + (string)playerBuffer + " 拥有最小的牌（" + (string)this->records[0].back().cards[0] + "），拥有发牌权。";
 			}
 			else
 				preRoundString = "预备回合信息检验异常。";
@@ -1213,8 +1258,9 @@ public:
 			this->players = vector<vector<Card>>(4);
 			this->deck.clear();
 			this->records.clear();
+			this->currentPlayer = (Player)(-1);
+			this->pLastToken = nullptr;
 			this->status = Status::Initialized;
-			
 			return true;
 		}
 		else
@@ -1228,15 +1274,15 @@ public:
 			this->deck.clear();
 			this->add52CardsToDeck();
 			shuffle(this->deck.begin(), this->deck.end(), this->seed);
-			for (PlayerID playerID = 0; playerID < 4; ++playerID)
+			for (Player player = 0; player < 4; ++player)
 			{
-				this->players[playerID] = vector<Card>(13);
+				this->players[player] = vector<Card>(13);
 				for (size_t idx = 0; idx < 13; ++idx)
 				{
-					this->players[playerID][idx] = this->deck.back();
+					this->players[player][idx] = this->deck.back();
 					this->deck.pop_back();
 				}
-				this->sortCards(this->players[playerID]);
+				this->sortCards(this->players[player]);
 			}
 			this->records.clear();
 			this->status = Status::Dealt;
@@ -1246,26 +1292,25 @@ public:
 		else
 			return false;
 	}
-	bool getNextPlayer(PlayerID& playerID) const override final
+	bool nextPlayer() override final
 	{
-		if (this->records.empty())
+		if (this->records.empty() || this->currentPlayer >= 4)
 			return false;
 		else
 		{
-			const size_t playerCount = this->players.size();
 			bool flags[4] = { true, true, true, true };
 			for (const Token& token : this->records.back())
-				if (token.playerID >= playerCount)
+				if (token.player >= 4)
 					return false;
 				else if (TokenType::Empty == token.tokenType)
-					flags[token.playerID] = false;
-			PlayerID offsetPlayer = playerID;
+					flags[token.player] = false;
+			Player offsetPlayer = this->currentPlayer;
 			for (Count count = 0; count < 4; ++count)
 			{
-				PokerGame::getNextPlayer(offsetPlayer);
+				offsetPlayer = (offsetPlayer + 1) % 4;
 				if (flags[offsetPlayer])
 				{
-					playerID = offsetPlayer;
+					this->currentPlayer = offsetPlayer;
 					return true;
 				}
 			}
@@ -1279,9 +1324,25 @@ public:
 	}
 };
 
-class Wuguapi : public PokerGame
+class Wuguapi : public PokerGame /* Previous: ThreeTwoOne | Next: Qiguiwueryi */
 {
 private:
+	/*bool processToken(Token& token) const override final
+	{
+		return true;
+	}*/
+	bool isOver() const override final
+	{
+		if (this->status >= Status::Started && this->deck.empty())
+			for (const vector<Card>& cards : this->players)
+				if (cards.empty())
+					return true;
+		return false;
+	}
+	/*bool canCover(const Token& currentToken) const override final
+	{
+		return true;
+	}*/
 	string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
@@ -1289,12 +1350,12 @@ private:
 		else
 		{
 			string preRoundString = "";
-			char playerIDBuffer[4] = { 0 };
+			char playerBuffer[4] = { 0 };
 			for (const Token& token : this->records[0])
 				if (token.cards.size() == 1)
 				{
-					snprintf(playerIDBuffer, 4, "%d", token.playerID + 1);
-					preRoundString += (string)token.cards[0] + "（玩家 " + playerIDBuffer + "） > ";
+					snprintf(playerBuffer, 4, "%d", token.player + 1);
+					preRoundString += (string)token.cards[0] + "（玩家 " + playerBuffer + "） > ";
 				}
 				else
 					return "预备回合信息检验异常。";
@@ -1322,6 +1383,8 @@ public:
 			this->players = vector<vector<Card>>(playerCount);
 			this->deck.clear();
 			this->records.clear();
+			this->currentPlayer = (Player)(-1);
+			this->pLastToken = nullptr;
 			this->status = Status::Initialized;
 			return true;
 		}
@@ -1336,15 +1399,15 @@ public:
 			this->add54CardsToDeck();
 			shuffle(this->deck.begin(), this->deck.end(), this->seed);
 			const size_t playerCount = this->players.size();
-			for (PlayerID playerID = 0; playerID < playerCount; ++playerID)
+			for (Player player = 0; player < playerCount; ++player)
 			{
-				this->players[playerID] = vector<Card>(5);
+				this->players[player] = vector<Card>(5);
 				for (size_t idx = 0; idx < 5; ++idx)
 				{
-					this->players[playerID][idx] = this->deck.back();
+					this->players[player][idx] = this->deck.back();
 					this->deck.pop_back();
 				}
-				this->sortCards(this->players[playerID]);
+				this->sortCards(this->players[player]);
 			}
 			this->records.clear();
 			this->status = Status::Dealt;
@@ -1361,9 +1424,25 @@ public:
 	}
 };
 
-class Qiguiwueryi : public PokerGame
+class Qiguiwueryi : public PokerGame /* Previous: ThreeTwoOne | Next: Qiguiwuersan */
 {
 private:
+	/*bool processToken(Token& token) const override final
+	{
+		return true;
+	}*/
+	bool isOver() const override final
+	{
+		if (this->status >= Status::Started && this->deck.empty())
+			for (const vector<Card>& cards : this->players)
+				if (cards.empty())
+					return true;
+		return false;
+	}
+	/*bool canCover(const Token& currentToken) const override final
+	{
+		return true;
+	}*/
 	string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
@@ -1371,12 +1450,12 @@ private:
 		else
 		{
 			string preRoundString = "";
-			char playerIDBuffer[4] = { 0 };
+			char playerBuffer[4] = { 0 };
 			for (const Token& token : this->records[0])
 				if (token.cards.size() == 1)
 				{
-					snprintf(playerIDBuffer, 4, "%d", token.playerID + 1);
-					preRoundString += (string)token.cards[0] + "（玩家 " + playerIDBuffer + "） > ";
+					snprintf(playerBuffer, 4, "%d", token.player + 1);
+					preRoundString += (string)token.cards[0] + "（玩家 " + playerBuffer + "） > ";
 				}
 				else
 					return "预备回合信息检验异常。";
@@ -1390,8 +1469,8 @@ public:
 	{
 		this->pokerType = "七鬼五二一";
 	}
-	bool initialize() override final { return this->initialize(2); }
-	bool initialize(const size_t playerCount) override final
+	bool initialize() override { return this->initialize(2); }
+	bool initialize(const size_t playerCount) override
 	{
 		if (this->status >= Status::Ready && 2 <= playerCount && playerCount <= 7)
 		{
@@ -1409,6 +1488,8 @@ public:
 			this->players = vector<vector<Card>>(playerCount);
 			this->deck.clear();
 			this->records.clear();
+			this->currentPlayer = (Player)(-1);
+			this->pLastToken = nullptr;
 			this->status = Status::Initialized;
 			return true;
 		}
@@ -1423,15 +1504,15 @@ public:
 			this->add54CardsToDeck();
 			shuffle(this->deck.begin(), this->deck.end(), this->seed);
 			const size_t playerCount = this->players.size();
-			for (PlayerID playerID = 0; playerID < playerCount; ++playerID)
+			for (Player player = 0; player < playerCount; ++player)
 			{
-				this->players[playerID] = vector<Card>(7);
+				this->players[player] = vector<Card>(7);
 				for (size_t idx = 0; idx < 7; ++idx)
 				{
-					this->players[playerID][idx] = this->deck.back();
+					this->players[player][idx] = this->deck.back();
 					this->deck.pop_back();
 				}
-				this->sortCards(this->players[playerID]);
+				this->sortCards(this->players[player]);
 			}
 			this->records.clear();
 			this->status = Status::Dealt;
@@ -1448,32 +1529,10 @@ public:
 	}
 };
 
-class Qiguiwuersan : public PokerGame
+class Qiguiwuersan : public Qiguiwueryi /* Previous: Qiguiwueryi */
 {
-private:
-	string getPreRoundString() const override final
-	{
-		if (this->records.empty() || this->records[0].empty())
-			return "暂无预备回合信息。";
-		else
-		{
-			string preRoundString = "";
-			char playerIDBuffer[4] = { 0 };
-			for (const Token& token : this->records[0])
-				if (token.cards.size() == 1)
-				{
-					snprintf(playerIDBuffer, 4, "%d", token.playerID + 1);
-					preRoundString += (string)token.cards[0] + "（玩家 " + playerIDBuffer + "） > ";
-				}
-				else
-					return "预备回合信息检验异常。";
-			preRoundString.erase(preRoundString.length() - 3, 3);
-			return preRoundString;
-		}
-	}
-	
 public:
-	Qiguiwuersan() : PokerGame()
+	Qiguiwuersan() : Qiguiwueryi()
 	{
 		this->pokerType = "七鬼五二三";
 	}
@@ -1496,42 +1555,13 @@ public:
 			this->players = vector<vector<Card>>(playerCount);
 			this->deck.clear();
 			this->records.clear();
+			this->currentPlayer = (Player)(-1);
+			this->pLastToken = nullptr;
 			this->status = Status::Initialized;
 			return true;
 		}
 		else
 			return false;
-	}
-	bool deal() override final
-	{
-		if (this->status >= Status::Initialized)
-		{
-			this->deck.clear();
-			this->add54CardsToDeck();
-			shuffle(this->deck.begin(), this->deck.end(), this->seed);
-			const size_t playerCount = this->players.size();
-			for (PlayerID playerID = 0; playerID < playerCount; ++playerID)
-			{
-				this->players[playerID] = vector<Card>(7);
-				for (size_t idx = 0; idx < 7; ++idx)
-				{
-					this->players[playerID][idx] = this->deck.back();
-					this->deck.pop_back();
-				}
-				this->sortCards(this->players[playerID]);
-			}
-			this->records.clear();
-			this->status = Status::Dealt;
-			this->assignDealer();
-			return true;
-		}
-		else
-			return false;
-	}
-	void display() const override final
-	{
-		PokerGame::display("最小先出", "牌堆（自下往上）：" + this->cards2string(this->deck, "", " | ", "", "（空）") + "\n\n");
-		return;
 	}
 };
 
@@ -1849,8 +1879,8 @@ public:
 			if (this->playerCount ? pokerGame->initialize(this->playerCount) : pokerGame->initialize())
 			{
 				pokerGame->deal();
-				PlayerID playerID = 0;
-				pokerGame->getLastEffectivePlayer(playerID);
+				Player player = 0;
+				pokerGame->getCurrentPlayer(player);
 				if ("斗地主" == this->pokerType)
 				{
 					Count retryCount = 0;
@@ -1861,7 +1891,7 @@ public:
 						{
 							this->clearScreen();
 							pokerGame->display();
-							cout << "请玩家 " << (playerID + 1) << " 选择是否" << (isRobbing ? "抢" : "叫") << "地主：";
+							cout << "请玩家 " << (player + 1) << " 选择是否" << (isRobbing ? "抢" : "叫") << "地主：";
 							string buffer = "";
 							this->getDescription(buffer);
 							if (this->isIn(buffer, this->landlordStatements))
@@ -1869,18 +1899,18 @@ public:
 								booleans[idx] = true;
 								isRobbing = true;
 							}
-							pokerGame->getNextPlayer(playerID);
+							pokerGame->nextPlayer(player);
 						}
 						if (booleans[0] && (booleans[1] || booleans[2]))
 						{
 							this->clearScreen();
 							pokerGame->display();
-							cout << "请玩家 " << (playerID + 1) << " 选择是否抢地主：";
+							cout << "请玩家 " << (player + 1) << " 选择是否抢地主：";
 							string buffer = "";
 							this->getDescription(buffer);
 							if (this->isIn(buffer, this->landlordStatements))
 								booleans[3] = true;
-							pokerGame->getNextPlayer(playerID);
+							pokerGame->nextPlayer(player);
 						}
 						if (booleans[0] || booleans[1] || booleans[2] || booleans[3] || retryCount >= 2)
 						{
@@ -1907,7 +1937,7 @@ public:
 						{
 							this->clearScreen();
 							pokerGame->display();
-							cout << "请玩家 " << (playerID + 1) << " 选择（" << this->vector2string(scoreDescriptions, "", " | ", "") << "）：";
+							cout << "请玩家 " << (player + 1) << " 选择（" << this->vector2string(scoreDescriptions, "", " | ", "") << "）：";
 							string buffer = "";
 							this->getDescription(buffer);
 							if (!buffer.empty())
@@ -1966,7 +1996,7 @@ public:
 									currentHighestScore = landlordScore;
 								}
 							}
-							pokerGame->getNextPlayer(playerID);
+							pokerGame->nextPlayer(player);
 						}
 						if (landlordScores[0] >= LandlordScore::One || landlordScores[1] >= LandlordScore::One || landlordScores[2] >= LandlordScore::One || landlordScores[3] >= LandlordScore::One || retryCount >= 2)
 						{
@@ -1982,27 +2012,27 @@ public:
 						}
 					}
 				}
-				pokerGame->getLastEffectivePlayer(playerID);
+				pokerGame->getCurrentPlayer(player);
 				for (;;)
 				{
 					this->clearScreen();
 					pokerGame->display();
-					cout << "请玩家 " << (playerID + 1) << " 开牌：";
+					cout << "请玩家 " << (player + 1) << " 开牌：";
 					string buffer = "";
 					this->getDescription(buffer);
-					//if (pokerGame->start(buffer, playerID))
+					if (pokerGame->start(buffer, player))
 						break;
 				}
-				while (playerID != (PlayerID)(-1))
+				while (player != (Player)(-1))
 				{
 					for (;;)
 					{
 						this->clearScreen();
 						pokerGame->display();
-						cout << "请玩家 " << (playerID + 1) << " 出牌：";
+						cout << "请玩家 " << (player + 1) << " 出牌：";
 						string buffer = "";
 						this->getDescription(buffer);
-						//if (pokerGame->play(buffer, playerID, playerID))
+						if (pokerGame->play(buffer, player, player))
 							break;
 					}
 				}
