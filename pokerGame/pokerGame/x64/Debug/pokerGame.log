@@ -1,2 +1,175 @@
 ﻿  pokerGame.cpp
-  pokerGame.vcxproj -> E:\星空\Win Linux DOS团队\chChess\pokerGame\x64\Debug\pokerGame.exe
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,22): error C2259: “Landlords”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(791,7):
+      参见“Landlords”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,22):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,22):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,22):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,18): error C2259: “Landlords”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(791,7):
+      参见“Landlords”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,18):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,18):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1988,18):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,22): error C2259: “Landlords4P”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1001,7):
+      参见“Landlords4P”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,22):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,22):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,22):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,18): error C2259: “Landlords4P”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1001,7):
+      参见“Landlords4P”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,18):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,18):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1990,18):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,22): error C2259: “BigTwo”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1248,7):
+      参见“BigTwo”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,22):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,22):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,22):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,18): error C2259: “BigTwo”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1248,7):
+      参见“BigTwo”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,18):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,18):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1992,18):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1994,22): error C2259: “ThreeTwoOne”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1336,7):
+      参见“ThreeTwoOne”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1994,22):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1994,22):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1994,18): error C2259: “ThreeTwoOne”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1336,7):
+      参见“ThreeTwoOne”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1994,18):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1994,18):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,22): error C2259: “Wuguapi”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1452,7):
+      参见“Wuguapi”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,22):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,22):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,22):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,18): error C2259: “Wuguapi”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1452,7):
+      参见“Wuguapi”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,18):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,18):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1996,18):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,22): error C2259: “Qiguiwueryi”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1552,7):
+      参见“Qiguiwueryi”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,22):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,22):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,22):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,18): error C2259: “Qiguiwueryi”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1552,7):
+      参见“Qiguiwueryi”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,18):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,18):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1998,18):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  
+E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(2000,22): error C2259: “Qiguiwueryi”: 无法实例化抽象类
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(1552,7):
+      参见“Qiguiwueryi”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(2000,22):
+      由于下列成员:
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(2000,22):
+      “bool PokerGame::processToken(Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(546,15):
+      参见“PokerGame::processToken”的声明
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(2000,22):
+      “bool PokerGame::coverLastToken(const Token &) const”: 是抽象的
+      E:\星空\Win Linux DOS团队\chChess\pokerGame\pokerGame\pokerGame.cpp(584,15):
+      参见“PokerGame::coverLastToken”的声明
+  

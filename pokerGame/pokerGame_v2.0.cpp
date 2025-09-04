@@ -56,13 +56,13 @@ enum class TokenType
 	
 	Single = 0b00010000, 
 	Straight = 0b00010001, 
-	flush = 0b00010010, 
-	flushStraight = 0b00010011, 
+	Flush = 0b00010010, 
+	FlushStraight = 0b00010011, 
 	
 	Pair = 0b00100000, 
 	PairStraight = 0b00100001, 
 	PairStraightWithSingle = 0b00100010, 
-	Rocket = 0b00100011, 
+	PairJokers = 0b00100011, 
 	
 	Triple = 0b00110000, 
 	TripleWithSingle = 0b00110001, 
@@ -77,6 +77,7 @@ enum class TokenType
 	Quadruple‌WithSingle = 0b01000001, 
 	Quadruple‌WithSingleSingle = 0b01000010, 
 	Quadruple‌WithPairPair = 0b01000011, 
+	QuadrupleJokers = 0b01000100, 
 	
 	Quintuple = 0b01010000, 
 	Sextuple = 0b01100000, 
