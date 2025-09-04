@@ -1052,7 +1052,7 @@ public:
 		{
 			/* Checking */
 			vector<Card> universalDeck{};
-			if (("三人斗地主" == this->pokerType && this->players.size() == 3 && _players.size() == 3) || ("五瓜皮" == this->pokerType || "七鬼五二一" == this->pokerType || "七鬼五二三" == this->pokerType) && this->players.size() >= 2 && _players.size() >= 2)
+			if (("三人斗地主" == this->pokerType && this->players.size() == 3 && _players.size() == 3) || ("五瓜皮" == this->pokerType || "七鬼五二一" == this->pokerType || "七鬼五二三" == this->pokerType) && (this->players.size() >= 2 && _players.size() >= 2))
 				this->add54CardsToDeck(universalDeck);
 			else if ("四人斗地主" == this->pokerType && this->players.size() == 4 && _players.size() == 4)
 			{
@@ -1593,10 +1593,12 @@ public:
 				else
 					invalidArgumentIndexes.push_back(argumentID);
 			if (argumentID == argumentCount)
+			{
 				if (this->isIn(arguments[argumentID], this->helpOptions))
 					this->helpKey = 1;
 				else
 					invalidArgumentIndexes.push_back(argumentID);
+			}
 			if (!invalidArgumentIndexes.empty())
 			{
 				const size_t length = invalidArgumentIndexes.size();

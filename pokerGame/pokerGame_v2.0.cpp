@@ -15,7 +15,11 @@
 #define EOF (-1)
 #endif
 #ifndef UNREFERENCED_PARAMETER
+#if defined _WIN32 || defined _WIN64
 #define UNREFERENCED_PARAMETER(P) (P)
+#else
+#define UNREFERENCED_PARAMETER(P)
+#endif
 #endif
 #ifndef JOKER_POINT
 #define JOKER_POINT 0
@@ -1796,8 +1800,8 @@ private:
 		{
 			cout << "目前支持以下扑克牌类型：" << endl;
 			const size_t length = this->pokerTypesC.size();
-			for (size_t idx = 0; idx < length;)
-				cout << "\t（" << ++idx << "）" << this->pokerTypesC[idx] << "；" << endl;
+			for (size_t idx = 0; idx < length; ++idx)
+				cout << "\t（" << (idx + 1) << "）" << this->pokerTypesC[idx] << "；" << endl;
 			cout << endl << endl << endl;
 			return true;
 		}
@@ -1888,7 +1892,7 @@ private:
 					const char choice = _pokerType.at(0) - '1';
 					if (-1 == choice)
 						return false;
-					else if (0 <= choice && choice < this->pokerTypesC.size())
+					else if (0 <= choice && choice < static_cast<long long int>(this->pokerTypesC.size()))
 					{
 						this->pokerType = this->pokerTypesC[choice];
 						break;
@@ -1973,10 +1977,12 @@ public:
 				else
 					invalidArgumentIndexes.push_back(argumentID);
 			if (argumentID == argumentCount)
+			{
 				if (this->isIn(arguments[argumentID], this->helpOptions))
 					this->helpKey = 1;
 				else
 					invalidArgumentIndexes.push_back(argumentID);
+			}
 			if (!invalidArgumentIndexes.empty())
 			{
 				const size_t length = invalidArgumentIndexes.size();

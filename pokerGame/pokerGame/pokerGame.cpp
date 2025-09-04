@@ -16,7 +16,11 @@
 #define EOF (-1)
 #endif
 #ifndef UNREFERENCED_PARAMETER
+#if defined _WIN32 || defined _WIN64
 #define UNREFERENCED_PARAMETER(P) (P)
+#else
+#define UNREFERENCED_PARAMETER(P)
+#endif
 #endif
 using namespace std;
 typedef unsigned char HelpKey;
@@ -2283,7 +2287,6 @@ public:
 						this->clearScreen();
 						pokerGame->display();
 						cout << "请玩家 " << (player + 1) << " 出牌：";
-						string buffer = "";
 						this->getDescription(buffer);
 						if (pokerGame->play(buffer))
 							break;

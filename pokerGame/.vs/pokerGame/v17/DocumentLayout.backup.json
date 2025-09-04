@@ -1,9 +1,9 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chChess\\pokerGame\\",
+  "WorkspaceRootPath": "E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chessCardComputing\\pokerGame\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{6E4B34A9-F378-4A43-94C4-EF85A34A5065}|pokerGame\\pokerGame.vcxproj|E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chChess\\pokerGame\\pokerGame\\pokerGame.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "AbsoluteMoniker": "D:0:0:{6E4B34A9-F378-4A43-94C4-EF85A34A5065}|pokerGame\\pokerGame.vcxproj|E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chessCardComputing\\pokerGame\\pokerGame\\pokerGame.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{6E4B34A9-F378-4A43-94C4-EF85A34A5065}|pokerGame\\pokerGame.vcxproj|solutionrelative:pokerGame\\pokerGame.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
@@ -28,11 +28,11 @@
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "pokerGame.cpp",
-              "DocumentMoniker": "E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chChess\\pokerGame\\pokerGame\\pokerGame.cpp",
+              "DocumentMoniker": "E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chessCardComputing\\pokerGame\\pokerGame\\pokerGame.cpp",
               "RelativeDocumentMoniker": "pokerGame\\pokerGame.cpp",
-              "ToolTip": "E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chChess\\pokerGame\\pokerGame\\pokerGame.cpp",
+              "ToolTip": "E:\\\u661F\u7A7A\\Win Linux DOS\u56E2\u961F\\chessCardComputing\\pokerGame\\pokerGame\\pokerGame.cpp",
               "RelativeToolTip": "pokerGame\\pokerGame.cpp",
-              "ViewState": "AgIAAIsFAAAAAAAAAAAYwJ8FAAAnAQAAAAAAAA==",
+              "ViewState": "AgIAAOEIAAAAAAAAAAAAAPEIAAANAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2025-08-09T02:18:11.81Z",
               "EditorCaption": ""
