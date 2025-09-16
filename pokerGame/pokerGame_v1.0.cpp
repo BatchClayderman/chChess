@@ -53,9 +53,9 @@ enum class TokenType
 	Empty = 0b00000000, 
 	
 	Single = 0b00010000, 
-	Straight = 0b00010001, 
-	Flush = 0b00010010, 
-	FlushStraight = 0b00010011, 
+	SingleStraight = 0b00010001, 
+	SingleFlush = 0b00010010, 
+	SingleFlushStraight = 0b00010011, 
 	
 	Pair = 0b00100000, 
 	PairStraight = 0b00100001, 
@@ -71,11 +71,13 @@ enum class TokenType
 	TripleStraightWithSingles = 0b00110110, 
 	TripleStraightWithPairs = 0b00110111, 
 	
-	Quadruple‌ = 0b01000000, 
-	Quadruple‌WithSingle = 0b01000001, 
-	Quadruple‌WithSingleSingle = 0b01000010, 
-	Quadruple‌WithPairPair = 0b01000011, 
-	QuadrupleJokers = 0b01000100, 
+	Quadruple = 0b01000000, 
+	QuadrupleWithSingle = 0b01000001, 
+	QuadrupleWithSingleSingle = 0b01000010, 
+	QuadrupleWithPairPair = 0b01000011, 
+	QuadrupleStraight = 0b01000100, 
+	QuadrupleStraightWithSingle = 0b01000101, 
+	QuadrupleJokers = 0b01000110, 
 	
 	Quintuple = 0b01010000, 
 	Sextuple = 0b01100000, 
@@ -357,13 +359,13 @@ protected:
 					if (this->isStraight(points, 3, indicatorPointer))
 						if ("三两一" == this->pokerType)
 						{
-							token.tokenType = TokenType::Straight;
+							token.tokenType = TokenType::SingleStraight;
 							token.indicator = token.cards[indicatorPointer];
 							return false;
 						}
 						else if ("五瓜皮" == this->pokerType)
 						{
-							token.tokenType = TokenType::Straight;
+							token.tokenType = TokenType::SingleStraight;
 							token.indicator = token.cards[0];
 							return true;
 						}
