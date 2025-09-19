@@ -8,7 +8,7 @@
         "driver": {
           "name": "PREfast",
           "fullName": "MSVC Code Analysis",
-          "version": "14.44.35216.0",
+          "version": "14.50.35503.0",
           "informationUri": "https://aka.ms/cpp/ca"
         }
       },
@@ -26,7 +26,7 @@
             "analysisTarget"
           ],
           "hashes": {
-            "sha-256": "c9142f66366f4241f2e52437d6b4ace05abf94af9aff252cfb841a0839e273be"
+            "sha-256": "b3f2b51b48831a66fe4fdaa0667cad2dc76323e762d300287c745483b9836459"
           }
         }
       ]

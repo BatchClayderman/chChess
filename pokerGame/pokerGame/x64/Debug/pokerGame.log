@@ -1,10 +1,6 @@
 ﻿  pokerGame.cpp
-E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1003,27): warning C4100: 'token': 未引用的参数
-E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1248,4): error C2360: “base”的初始化操作由“case”标签跳过
-      E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1246,18):
-      参见“base”的声明
-  
-E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1251,4): error C2361: “default”标签跳过“base”的初始化操作
-      E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1246,18):
-      参见“base”的声明
-  
+E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1501,33): warning C4100: 'token': 未引用的参数
+E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1794,18): warning C4189: “base”: 局部变量已初始化但不引用
+E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(1815,33): warning C4100: 'token': 未引用的参数
+E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\pokerGame\pokerGame.cpp(2713,54): warning C4100: 'token': 未引用的参数
+  pokerGame.vcxproj -> E:\星空\Win Linux DOS团队\chessCardComputing\pokerGame\x64\Debug\pokerGame.exe

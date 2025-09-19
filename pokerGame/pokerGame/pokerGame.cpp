@@ -111,6 +111,14 @@ enum class LandlordScore
 	Three = 3
 };
 
+enum class Action
+{
+	None = 0, 
+	Again = 1, 
+	Return = 2, 
+	Exit = 3
+};
+
 
 struct Card
 {
@@ -121,7 +129,11 @@ struct Card
 	{
 		return a.point == b.point && a.suit == b.suit;
 	}
-	operator string() const
+	friend bool operator==(const Card& card, const Point& point)
+	{
+		return card.point == point;
+	}
+	operator const string() const
 	{
 		string stringBuffer{};
 		switch (this->suit)
@@ -190,7 +202,7 @@ struct Token
 	vector<Card> cards{};
 	TokenType tokenType = TokenType::Invalid;
 
-	operator bool() const
+	operator const bool() const
 	{
 		return this->player != INVALID_PLAYER || this->tokenType != TokenType::Invalid;
 	}
@@ -207,7 +219,7 @@ public:
 	{
 		
 	}
-	bool set(const Point point, const Value value)
+	const bool set(const Point point, const Value value)
 	{
 		if (0 <= point && point <= 13 && 1 <= value && value <= 14)
 		{
@@ -217,7 +229,7 @@ public:
 		else
 			return false;
 	}
-	bool get(const Point point, Value& value) const
+	const bool get(const Point point, Value& value) const
 	{
 		if (0 <= point && point <= 13)
 		{
@@ -227,7 +239,7 @@ public:
 		else
 			return false;
 	}
-	Value operator[](const Point point) const
+	const Value operator[](const Point point) const
 	{
 		return 0 <= point && point <= 13 ? this->values[point] : 0;
 	}
@@ -248,7 +260,7 @@ protected:
 	Status status = Status::Ready;
 	
 private:
-	virtual void add52CardsToDeck(vector<Card>& _deck) const final
+	virtual const void add52CardsToDeck(vector<Card>& _deck) const final
 	{
 		for (Point point = 1; point <= 13; ++point)
 		{
@@ -259,7 +271,7 @@ private:
 		}
 		return;
 	}
-	virtual void add54CardsToDeck(vector<Card>& _deck) const final
+	virtual const void add54CardsToDeck(vector<Card>& _deck) const final
 	{
 		this->add52CardsToDeck(_deck);
 		_deck.push_back(Card{ JOKER_POINT, Suit::Black });
@@ -269,17 +281,17 @@ private:
 	
 protected:
 	/* PokerGame::deal */
-	virtual void add52CardsToDeck() final
+	virtual const void add52CardsToDeck() final
 	{
 		this->add52CardsToDeck(this->deck);
 		return;
 	}
-	virtual void add54CardsToDeck() final
+	virtual const void add54CardsToDeck() final
 	{
 		this->add54CardsToDeck(this->deck);
 		return;
 	}
-	virtual void sortCards(vector<Card>& cards, const SortingMethod sortingMethod) const final
+	virtual const void sortCards(vector<Card>& cards, const SortingMethod sortingMethod) const final
 	{
 		switch (sortingMethod)
 		{
@@ -311,12 +323,12 @@ protected:
 		}
 		return;
 	}
-	virtual void sortCards(vector<Card>& cards) const final
+	virtual const void sortCards(vector<Card>& cards) const final
 	{
 		this->sortCards(cards, SortingMethod::FromBigToSmall);
 		return;
 	}
-	virtual bool assignDealer()
+	virtual const bool assignDealer()
 	{
 		if (Status::Dealt == this->status && this->records.empty())
 		{
@@ -337,21 +349,28 @@ protected:
 	}
 	
 	/* PokerGame::setLandlord */
-	virtual bool nextPlayer()
+	virtual const bool nextPlayer()
 	{
 		const size_t playerCount = this->players.size();
-		if (this->currentPlayer < playerCount)
+		if (0 <= this->currentPlayer && this->currentPlayer < playerCount)
 		{
-			if (++this->currentPlayer >= playerCount) // This works correctly even though player is 255. 
-				this->currentPlayer = 0;
-			return true;
+			const Player originalPlayer = this->currentPlayer;
+			for (;;)
+			{
+				if (++this->currentPlayer >= playerCount) // This can still work correctly even when ``this->currentPlayer`` is 255. 
+					this->currentPlayer = 0;
+				if (originalPlayer == this->currentPlayer)
+					return false;
+				else if (!this->players[this->currentPlayer].empty())
+					return true;
+			}
 		}
 		else
 			return false;
 	}
 	
 	/* PokerGame::start and PokerGame::play */
-	virtual bool description2cards(const string& description, vector<Card>& cards) const final
+	virtual const bool description2cards(const string& description, vector<Card>& cards) const final
 	{
 		if ("/" == description || "\\" == description || "-" == description || "--" == description || "要不起" == description || "不出" == description || "不打" == description)
 		{
@@ -562,7 +581,7 @@ protected:
 		else
 			return false;
 	}
-	virtual bool checkStarting(const vector<Card>& cards) const
+	virtual const bool checkStarting(const vector<Card>& cards) const
 	{
 		return !cards.empty() && (this->records[0].back().cards.size() == 1 && find(cards.begin(), cards.end(), this->records[0].back().cards[0]) != cards.end());
 	}
@@ -616,8 +635,8 @@ protected:
 		else
 			return 0;
 	}
-	virtual bool processToken(Token& token) const = 0;
-	virtual bool removeCards(const vector<Card>& _smallerCards, vector<Card>& largerCards) const final // The vector ``largerCards`` must have been sorted according to the default sorting method. 
+	virtual const bool processToken(Token& token) const = 0;
+	virtual const bool removeCards(const vector<Card>& _smallerCards, vector<Card>& largerCards) const final // The vector ``largerCards`` must have been sorted according to the default sorting method. 
 	{
 		vector<Card> smallerCards = vector<Card>(_smallerCards);
 		this->sortCards(smallerCards);
@@ -646,7 +665,7 @@ protected:
 		else
 			return true;
 	}
-	virtual bool isOver() const
+	virtual const bool isOver() const
 	{
 		if (this->status >= Status::Started)
 			for (const vector<Card>& cards : this->players)
@@ -654,12 +673,15 @@ protected:
 					return true;
 		return false;
 	}
-	virtual bool processAmounts(const Token& token) { UNREFERENCED_PARAMETER(token); return false; }
-	virtual bool isAbsolutelyLargest(const Token& token) const = 0;
-	virtual bool coverLastToken(const Token& currentToken) const = 0;
-	
+	virtual const bool processAmounts(const Token& token) { UNREFERENCED_PARAMETER(token); return false; }
+	virtual const bool isAbsolutelyLargest(const Token& token) const = 0;
+	virtual const bool coverLastToken(const Token& currentToken) const = 0;
+	virtual const bool computeAmounts(const unsigned char multiplication1Opening7, const unsigned int basis12Calling4Robbing4Real4Empty4Spring4) { UNREFERENCED_PARAMETER(multiplication1Opening7); UNREFERENCED_PARAMETER(basis12Calling4Robbing4Real4Empty4Spring4); return false; }
+	virtual const bool computeAmounts() = 0;
+
 	/* PokerGame::display */
-	virtual string cards2string(const vector<Card>& cards, const string& prefix, const string& separator, const string& suffix, const string& returnIfEmpty) const final
+	virtual const string getBasisString() const { return ""; }
+	virtual const string cards2string(const vector<Card>& cards, const string& prefix, const string& separator, const string& suffix, const string& returnIfEmpty) const final
 	{
 		if (cards.empty())
 			return returnIfEmpty;
@@ -673,9 +695,26 @@ protected:
 			return stringBuffer;
 		}
 	}
-	virtual string getBasisString() const { return ""; }
-	virtual string getPreRoundString() const = 0;
-	virtual bool display(const vector<Player>& selectedPlayers, const string& dealerRemark, const string& deckDescription) const final
+	virtual const string getPreRoundString() const = 0;
+	virtual const string getAmountString() const final
+	{
+		if (Status::Over == this->status && this->amounts.size() == this->players.size())
+		{
+			string amountString = "结算信息：";
+			char playerBuffer[4] = { 0 }, amountBuffer[21] = { 0 };
+			const size_t playerCount = this->players.size();
+			for (Player player = 0; player < playerCount; ++player)
+			{
+				snprintf(playerBuffer, 4, "%d", player + 1);
+				snprintf(amountBuffer, 21, "%lld", this->amounts[player]);
+				amountString += (string)"玩家 " + playerBuffer + "：" + amountBuffer + "\n";
+			}
+			return amountString;
+		}
+		else
+			return "结算信息异常，请各位玩家自行计算结算信息。\n";
+	}
+	virtual const bool display(const vector<Player>& selectedPlayers, const string& dealerRemark, const string& deckDescription) const final
 	{
 		switch (this->status)
 		{
@@ -691,7 +730,7 @@ protected:
 		case Status::Over:
 		{
 			bool flag = true;
-			cout << "牌局：" << this->pokerType << "（";
+			cout << "扑克牌类型：" << this->pokerType << "（";
 			switch (this->status)
 			{
 			case Status::Dealt:
@@ -737,6 +776,8 @@ protected:
 					}
 				}
 				cout << endl;
+				if (Status::Over == this->status)
+					cout << this->getAmountString() << endl;
 			}
 			return flag;
 		}
@@ -757,10 +798,10 @@ public:
 	{
 		
 	}
-	virtual bool initialize() = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), records (clear), currentPlayer (reset), dealer (reset), lastToken (reset), amounts (clear), and status = Status::Initialized
-	virtual bool initialize(const size_t playerCount) = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), records (clear), currentPlayer (reset), dealer (reset), lastToken (reset), amounts (clear), and status = Status::Initialized
-	virtual bool deal() = 0; // players, deck, records (clear) -> records[0], currentPlayer, dealer, lastToken (reset), amounts (clear) | amounts = vector<Amount>{ 0 }, and status = Status::Dealt | Status::Assigned
-	virtual bool getCurrentPlayer(Player& player) const final // const
+	virtual const bool initialize() = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), records (clear), currentPlayer (reset), dealer (reset), lastToken (reset), amounts (clear), and status = Status::Initialized
+	virtual const bool initialize(const size_t playerCount) = 0; // values, players (= vector<vector<Card>>(n)), deck (clear), records (clear), currentPlayer (reset), dealer (reset), lastToken (reset), amounts (clear), and status = Status::Initialized
+	virtual const bool deal() = 0; // players, deck, records (clear) -> records[0], currentPlayer, dealer, lastToken (reset), amounts (clear) | amounts = vector<Amount>{ 0 }, and status = Status::Dealt | Status::Assigned
+	virtual const bool getCurrentPlayer(Player& player) const final // const
 	{
 		if ((Status::Dealt <= this->status && this->status <= Status::Started && 0 <= this->currentPlayer && this->currentPlayer < this->players.size()) || Status::Over == this->status)
 		{
@@ -770,9 +811,9 @@ public:
 		else
 			return false;
 	}
-	virtual bool setLandlord(const bool b) { UNREFERENCED_PARAMETER(b); return false; } // records[0], currentPlayer, dealer (const) -> dealer, lastToken -> lastToken (reset), amounts[0], and status (const) -> status = Status::Assigned
-	virtual bool setLandlord(const LandlordScore landlordScore) { UNREFERENCED_PARAMETER(landlordScore); return false; } // records[0], currentPlayer, dealer (const) -> dealer, lastToken -> lastToken (reset), amounts[0], and status (const) -> status = Status::Assigned
-	virtual bool start(const vector<Card>& cards) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0], and status = Status::Started | Status::Over
+	virtual const bool setLandlord(const bool b) { UNREFERENCED_PARAMETER(b); return false; } // records[0], currentPlayer, dealer (const) -> dealer, lastToken -> lastToken (reset), amounts[0], and status (const) -> status = Status::Assigned
+	virtual const bool setLandlord(const LandlordScore landlordScore) { UNREFERENCED_PARAMETER(landlordScore); return false; } // records[0], currentPlayer, dealer (const) -> dealer, lastToken -> lastToken (reset), amounts[0], and status (const) -> status = Status::Assigned
+	virtual const bool start(const vector<Card>& cards) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status = Status::Started | Status::Over
 	{
 		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty() && 0 <= this->currentPlayer && this->currentPlayer < this->players.size() && this->checkStarting(cards))
 		{
@@ -786,6 +827,7 @@ public:
 					this->currentPlayer = INVALID_PLAYER;
 					this->lastToken = Token{};
 					this->status = Status::Over;
+					this->computeAmounts();
 				}
 				else
 				{
@@ -803,7 +845,7 @@ public:
 			return false;
 
 	}
-	virtual bool start(const string& description) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0], and status = Status::Started | Status::Over
+	virtual const bool start(const string& description) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status = Status::Started | Status::Over
 	{
 		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty())
 		{
@@ -813,7 +855,7 @@ public:
 		else
 			return false;
 	}
-	virtual bool play(const vector<Card>& cards) final // records, currentPlayer, lastToken, amounts (const) | amounts[0], and status (const) -> status = Status::Over
+	virtual const bool play(const vector<Card>& cards) final // records, currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status (const) -> status = Status::Over
 	{
 		if (Status::Started == this->status && this->records.size() >= 2 && !this->records.back().empty() && 0 <= this->currentPlayer && this->currentPlayer < this->players.size() && this->lastToken)
 		{
@@ -845,6 +887,7 @@ public:
 				this->currentPlayer = INVALID_PLAYER;
 				this->lastToken = Token{};
 				this->status = Status::Over;
+				this->computeAmounts();
 			}
 			else
 			{
@@ -857,7 +900,7 @@ public:
 		else
 			return false;
 	}
-	virtual bool play(const string& description) final // records, currentPlayer, lastToken, amounts (const) | amounts[0], and status (const) -> status = Status::Over
+	virtual const bool play(const string& description) final // records, currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status (const) -> status = Status::Over
 	{
 		if (Status::Started == this->status && this->records.size() >= 2 && !this->records.back().empty())
 		{
@@ -867,8 +910,7 @@ public:
 		else
 			return false;
 	}
-	virtual bool getAmounts(vector<Amount>& _amounts) = 0; // amounts
-	virtual bool set(const char binaryChars[]) final // values, players, deck, records, currentPlayer, dealer, lastToken, amounts, and status
+	virtual const bool set(const char binaryChars[]) final // values, players, deck, records, currentPlayer, dealer, lastToken, amounts, and status
 	{
 		const size_t length = sizeof(binaryChars), playerCount = this->players.size();
 		vector<vector<Card>> newPlayers(playerCount);
@@ -966,8 +1008,8 @@ public:
 		}
 		return true;
 	}
-	virtual bool display(const vector<Player>& selectedPlayers) const = 0; // const
-	virtual bool display() const final // const
+	virtual const bool display(const vector<Player>& selectedPlayers) const = 0; // const
+	virtual const bool display() const final // const
 	{
 		const size_t playerCount = this->players.size();
 		vector<Player> selectedPlayers(playerCount);
@@ -975,13 +1017,13 @@ public:
 			selectedPlayers[player] = player;
 		return this->display(selectedPlayers);
 	}
-	virtual bool display(const Player player) const final { return INVALID_PLAYER == player ? this->display() : this->display(vector<Player>{ player }); } // const
+	virtual const bool display(const Player player) const final { return INVALID_PLAYER == player ? this->display() : this->display(vector<Player>{ player }); } // const
 };
 
 class Landlords : public PokerGame /* Next: Landlords4P */
 {
 private:
-	bool assignDealer() override final
+	const bool assignDealer() override final
 	{
 		if (Status::Dealt == this->status && this->records.empty())
 		{
@@ -996,30 +1038,110 @@ private:
 		else
 			return false;
 	}
-	bool checkStarting(const vector<Card>& cards) const override final
+	const bool checkStarting(const vector<Card>& cards) const override final
 	{
 		return !cards.empty();
 	}
-	bool processToken(Token& token) const override final
+	const bool processToken(Token& token) const override final
 	{
-		return true;
+		vector<Count> counts(14);
+		for (const Card& card : token.cards)
+			if (this->values[card.point])
+				++counts[card.point];
+			else
+				return false;
+		sort(token.cards.begin(), token.cards.end(), [&counts, this](const Card a, const Card b) { return counts[a.point] > counts[b.point] || (counts[a.point] == counts[b.point] && this->values[a.point] > this->values[b.point]) || (counts[a.point] == counts[b.point] && this->values[a.point] == this->values[b.point] && a.suit > b.suit); });
+		sort(counts.begin(), counts.end(), [](const Count a, const Count b) { return a > b; });
+		switch (token.cards.size())
+		{
+		case 0:
+			token.tokenType = TokenType::Empty;
+			return true;
+		case 1:
+			token.tokenType = TokenType::Single;
+			return true;
+		case 2:
+			if (2 == counts[0])
+			{
+				token.tokenType = TokenType::Pair;
+				return true;
+			}
+			else
+				return false;
+		case 3:
+			if (3 == counts[0])
+			{
+				token.tokenType = TokenType::Triple;
+				return true;
+			}
+			else
+				return false;
+		case 4:
+			if (4 == counts[0])
+			{
+				token.tokenType = TokenType::Quadruple;
+				return true;
+			}
+			else
+				return false;
+		case 5:
+			if (5 == counts[0])
+			{
+				token.tokenType = TokenType::Quintuple;
+				return true;
+			}
+			else if (3 == counts[0] && 2 == counts[1])
+			{
+				token.tokenType = TokenType::TripleWithPair;
+				return true;
+			}
+			else if (this->judgeStraight(token.cards) == 1)
+			{
+				token.tokenType = TokenType::SingleStraight;
+				return true;
+			}
+			else
+				return false;
+		case 6:
+			if (3 == counts[0] && 3 == counts[1])
+			{
+				if (token.cards[0].point)
+				token.tokenType = TokenType::TripleStraight;
+				return true;
+			}
+			else if (4 == counts[0] && 2 == counts[1])
+			{
+				// 四带二
+				token.tokenType = TokenType::QuadrupleWithSingleSingle;
+				return true;
+			}
+			else if (this->judgeStraight(token.cards) == 1)
+			{
+				token.tokenType = TokenType::SingleStraight;
+				return true;
+			}
+			else
+				return false;
+		default:
+			return false;
+		}
 	}
-	virtual bool processAmounts(const Token& token) override final
+	const bool processAmounts(const Token& token) override final
 	{
 		if (Status::Assigned <= this->status && this->status <= Status::Started && !this->records.empty() && !this->records.back().empty() && this->amounts.size() == 1)
 		{
 			if (TokenType::Quadruple == token.tokenType || TokenType::PairJokers == token.tokenType)
-				this->amounts[0] += token.player == this->lastToken.player ? 0b10000000 : 0b1000;
+				this->amounts[0] += token.player == this->lastToken.player ? 0b1 : 0b10000;
 			return true;
 		}
 		else
 			return false;
 	}
-	virtual bool isAbsolutelyLargest(const Token& token) const override final
+	const bool isAbsolutelyLargest(const Token& token) const override final
 	{
 		return TokenType::PairJokers == token.tokenType;
 	}
-	bool coverLastToken(const Token& currentToken) const override final
+	const bool coverLastToken(const Token& currentToken) const override final
 	{
 		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::QuadrupleWithPairPair && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::QuadrupleWithPairPair && !currentToken.cards.empty())
 			switch (this->lastToken.tokenType)
@@ -1047,20 +1169,119 @@ private:
 		else
 			return false;
 	}
-	string getBasisString() const
+	const bool computeAmounts(const unsigned char multiplication1Opening7, const unsigned int basis12Calling4Robbing4Real4Empty4Spring4) override final
+	{
+		if (Status::Over == this->status && this->players.size() == 3)
+		{
+			switch (this->amounts.size())
+			{
+			case 1: // at most 5 ** 3 * 4096 * 5 ** 18 * 2 = 3906250000000000000 < 1 << 63 = 9223372036854775808
+			{
+				if (this->amounts[0] < 0)
+					return false;
+				const Amount backup = this->amounts[0];
+				Amount mutableAmounts[5] = { /* calling = */ (backup >> 10) & 0b1, /* robbing = */ (backup >> 8) & 0b11, /* realBooms = */ (backup >> 4) & 0b1111, /* emptyBooms = */ backup & 0b1111 };
+				const Amount constAmounts[5] = { mutableAmounts[0], mutableAmounts[1], mutableAmounts[2], mutableAmounts[3] };
+				Amount* p = mutableAmounts;
+				const Amount* q = constAmounts;
+				for (Count count = 0, offset = 16; count < 4; ++count)
+				{
+					switch ((basis12Calling4Robbing4Real4Empty4Spring4 >> offset) & 0b1111)
+					{
+					case 0:
+						*p = 0;
+						break;
+					case 1:
+						break;
+					case 2:
+						*p <<= 1;
+						break;
+					case 3:
+						*p *= 3;
+						break;
+					case 4:
+						*p <<= 2;
+						break;
+					case 5:
+						*p *= 5;
+						break;
+					case 6:
+						*p *= 6;
+						break;
+					case 7:
+						*p *= 7;
+						break;
+					case 8:
+						*p <<= 3;
+						break;
+					case 9:
+						*p *= 9;
+						break;
+					case 10:
+						*p = 1;
+						break;
+					case 15:
+						*p *= *q;
+					case 14:
+						*p *= *q;
+					case 13:
+						*p *= *q;
+					case 12:
+						*p *= *q;
+					case 11:
+						break;
+					default:
+						return false;
+					}
+					++p;
+					++q;
+					offset -= 4;
+				}
+				if (multiplication1Opening7 >> 7)
+					this->amounts[0] = static_cast<Amount>(multiplication1Opening7 & 0b1111111) * (basis12Calling4Robbing4Real4Empty4Spring4 >> 20) * mutableAmounts[0] * mutableAmounts[1] * mutableAmounts[2] * mutableAmounts[3] * mutableAmounts[4];
+				else
+					this->amounts[0] = static_cast<Amount>(multiplication1Opening7 & 0b1111111) + (basis12Calling4Robbing4Real4Empty4Spring4 >> 20) + mutableAmounts[0] + mutableAmounts[1] + mutableAmounts[2] + mutableAmounts[3] + mutableAmounts[4];
+				this->amounts = vector<Amount>(3);
+				Amount s = 0;
+				for (Player player = 0; player < 3; ++player)
+				{
+					this->amounts[player] = player == this->dealer ? (this->players[player].empty() ? backup << 1 : -(backup << 1)) : (this->players[player].empty() ? backup : -backup);
+					s += this->amounts[player];
+				}
+				if (s)
+				{
+					this->amounts = vector<Amount>{ backup };
+					return false;
+				}
+			}
+			case 3:
+				return true;
+			default:
+				return false;
+			}
+		}
+		else
+			return false;
+	}
+	const bool computeAmounts() override final
+	{
+		return this->computeAmounts(0b10000000, 0b00000000101011001100110011001100);
+	}
+	const string getBasisString() const
 	{
 		if (this->amounts.size() == 1)
 		{
-			char buffer1[21] = { 0 }, buffer2[21] = { 0 }, buffer3[21] = { 0 };
-			snprintf(buffer1, 21, "%lld", this->amounts[0] & 0b0111);
-			snprintf(buffer2, 21, "%lld", (this->amounts[0] & 0b01111111) >> 3);
-			snprintf(buffer3, 21, "%lld", this->amounts[0] >> 7);
-			return (string)"倍数信息：当前共叫地主或抢地主 " + buffer1 + " 次；共出实炸 " + buffer2 + " 个，空炸 " + buffer3 + " 个。\n";
+			char buffers[4][21] = { { 0 } };
+			snprintf(buffers[0], 21, "%lld", this->amounts[0] >> 10);
+			snprintf(buffers[1], 21, "%lld", this->amounts[0] >> 8);
+			snprintf(buffers[2], 21, "%lld", (this->amounts[0] >> 4) & 0b1111);
+			snprintf(buffers[3], 21, "%lld", this->amounts[0] & 0b1111);
+			return (string)"倍数信息：当前共叫地主 " + buffers[0] + " 次，抢地主 " + buffers[1] + " 次；共出实炸 " + buffers[2] + " 个，空炸 " + buffers[3] + " 个。\n";
 		}
 		else
 			return "";
 	}
-	string getPreRoundString() const override final
+	const string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
 			return "暂无预备回合信息。";
@@ -1105,7 +1326,7 @@ public:
 	{
 		this->pokerType = "斗地主";
 	}
-	bool initialize() override final
+	const bool initialize() override final
 	{
 		if (this->status >= Status::Ready)
 		{
@@ -1128,8 +1349,8 @@ public:
 		else
 			return false;
 	}
-	bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
-	bool deal() override final
+	const bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
+	const bool deal() override final
 	{
 		if (this->status >= Status::Initialized)
 		{
@@ -1154,7 +1375,7 @@ public:
 		else
 			return false;
 	}
-	bool setLandlord(const bool b) override final
+	const bool setLandlord(const bool b) override final
 	{
 		if (Status::Dealt == this->status && this->records.size() == 1 && 0 <= this->currentPlayer && this->currentPlayer < this->players.size() && this->amounts.size() == 1)
 			switch (this->records[0].size())
@@ -1164,7 +1385,7 @@ public:
 				{
 					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{} } });
 					this->lastToken = this->records[0][0];
-					this->amounts[0] += 0b1;
+					this->amounts[0] = 0b10000000000;
 				}
 				else
 					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{} });
@@ -1174,9 +1395,13 @@ public:
 				if (b)
 				{
 					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{} } });
-					if (!this->lastToken)
+					if (this->lastToken)
+						this->amounts[0] += 0b100000000;
+					else
+					{
 						this->lastToken = this->records[0][1];
-					this->amounts[0] += 0b1;
+						this->amounts[0] = 0b10000000000;
+					}
 				}
 				else
 					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{} });
@@ -1187,7 +1412,10 @@ public:
 				if (b)
 				{
 					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{} } });
-					this->amounts[0] += 0b1;
+					if (this->lastToken)
+						this->amounts[0] += 0b100000000;
+					else
+						this->amounts[0] = 0b10000000000;
 				}
 				else
 					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{} });
@@ -1221,7 +1449,10 @@ public:
 				if (b)
 				{
 					this->records[0].push_back(Token{ this->currentPlayer, vector<Card>{ Card{} } });
-					this->amounts[0] += 0b1;
+					if (this->lastToken)
+						this->amounts[0] += 0b100000000;
+					else
+						return false;
 				}
 				else
 				{
@@ -1238,33 +1469,7 @@ public:
 		else
 			return false;
 	}
-	bool getAmounts(vector<Amount>& _amounts, const bool connectedByMultiplication, const Amount basis, const char16_t callingAndRobbing, const char16_t realBooms, const char16_t emptyBooms, const char16_t spring) override final
-	{
-		if (Status::Over == this->status)
-		{
-			switch (this->amounts.size())
-			{
-			case 1: // at most (9 ** (4 + 14) | 9 ** (4 + 13 + 1)) * 2 = 9 ** 18 * 2 < 1 << 59
-			{
-				const Amount callingAndRobbingCount = this->amounts[0] & 0b0111, realBoomCount = (this->amounts[0] & 0b01111111) >> 3, emptyBoomCount = this->amounts[0] >> 7;
-
-				/////
-			}
-			case 3:
-				_amounts = vector<Amount>(this->amounts);
-				return true;
-			default:
-				return false;
-			}
-		}
-		else
-			return false;
-	}
-	bool getAmounts(vector<Amount>& _amounts) override final
-	{
-		return this->getAmounts(_amounts, true, 10, '*2', '*2', '*2', '*2');
-	}
-	bool display(const vector<Player>& selectedPlayers) const override final
+	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return this->status >= Status::Assigned ? PokerGame::display(selectedPlayers, "地主", "地主牌：" + this->cards2string(this->deck, "", " | ", "（已公开）", "（空）") + "\n\n") : PokerGame::display(selectedPlayers, "拥有明牌", "地主牌：" + this->cards2string(this->deck, "", " | ", "（未公开）", "（空）") + "\n\n");
 	}
@@ -1273,7 +1478,8 @@ public:
 class Landlords4P : public PokerGame /* Previous: Landlords | Next: BigTwo */
 {
 private:
-	bool assignDealer() override final
+	/* PokerGame::deal */
+	const bool assignDealer() override final
 	{
 		if (Status::Dealt == this->status && this->records.empty())
 		{
@@ -1288,15 +1494,15 @@ private:
 		else
 			return false;
 	}
-	bool checkStarting(const vector<Card>& cards) const override final
+	const bool checkStarting(const vector<Card>& cards) const override final
 	{
 		return !cards.empty();
 	}
-	bool processToken(Token& token) const override final
+	const bool processToken(Token& token) const override final
 	{
 		return true;
 	}
-	virtual bool processAmounts(const Token& token) override final
+	virtual const bool processAmounts(const Token& token) override final
 	{
 		if (Status::Assigned <= this->status && this->status <= Status::Started && this->amounts.size() == 1)
 		{
@@ -1318,11 +1524,11 @@ private:
 		else
 			return false;
 	}
-	virtual bool isAbsolutelyLargest(const Token& token) const override final
+	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
 		return TokenType::QuadrupleJokers == token.tokenType;
 	}
-	bool coverLastToken(const Token& currentToken) const override final
+	const bool coverLastToken(const Token& currentToken) const override final
 	{
 		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::Octuple && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::Octuple && !currentToken.cards.empty())
 			switch (this->lastToken.tokenType)
@@ -1350,7 +1556,7 @@ private:
 		else
 			return false;
 	}
-	string getBasisString() const
+	const string getBasisString() const
 	{
 		if (this->amounts.size() == 1)
 		{
@@ -1361,7 +1567,7 @@ private:
 		else
 			return "";
 	}
-	string getPreRoundString() const override final
+	const string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
 			return "暂无预备回合信息。";
@@ -1423,7 +1629,7 @@ public:
 	{
 		this->pokerType = "四人斗地主";
 	}
-	bool initialize() override final
+	const bool initialize() override final
 	{
 		if (this->status >= Status::Ready)
 		{
@@ -1446,8 +1652,8 @@ public:
 		else
 			return false;
 	}
-	bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
-	bool deal() override final
+	const bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
+	const bool deal() override final
 	{
 		if (this->status >= Status::Initialized)
 		{
@@ -1473,7 +1679,7 @@ public:
 		else
 			return false;
 	}
-	bool setLandlord(const LandlordScore landlordScore) override final
+	const bool setLandlord(const LandlordScore landlordScore) override final
 	{
 		const Point point = static_cast<Point>(landlordScore);
 		if (Status::Dealt == this->status && this->records.size() == 1 && 0 <= this->currentPlayer && this->currentPlayer < this->players.size())
@@ -1576,7 +1782,7 @@ public:
 		else
 			return false;
 	}
-	virtual bool getAmounts(vector<Amount>& _amounts) override final
+	virtual const bool computeAmounts() override final
 	{
 		if (Status::Over == this->status)
 			switch (this->amounts.size())
@@ -1590,7 +1796,6 @@ public:
 				/////
 			}
 			case 4:
-				_amounts = vector<Amount>(this->amounts);
 				return true;
 			default:
 				return false;
@@ -1598,7 +1803,7 @@ public:
 		else
 			return false;
 	}
-	bool display(const vector<Player>& selectedPlayers) const override final
+	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return this->status >= Status::Assigned ? PokerGame::display(selectedPlayers, "地主", "地主牌：" + this->cards2string(this->deck, "", " | ", "（已公开）", "（空）") + "\n\n") : PokerGame::display(selectedPlayers, "拥有明牌", "地主牌：" + this->cards2string(this->deck, "", " | ", "（未公开）", "（空）") + "\n\n");
 	}
@@ -1607,15 +1812,15 @@ public:
 class BigTwo : public PokerGame /* Previous: Landlords4P | Next: ThreeTwoOne */
 {
 private:
-	bool processToken(Token& token) const override final
+	const bool processToken(Token& token) const override final
 	{
 		return true;
 	}
-	virtual bool isAbsolutelyLargest(const Token& token) const override final
+	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
 		return (TokenType::Single == token.tokenType || TokenType::Pair == token.tokenType || TokenType::Triple == token.tokenType || TokenType::Quadruple == token.tokenType || TokenType::SingleFlushStraight == token.tokenType) && (!token.cards.empty() && Card { 2, Suit::Spade } == token.cards[0]);
 	}
-	bool coverLastToken(const Token& currentToken) const override final
+	const bool coverLastToken(const Token& currentToken) const override final
 	{
 		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::QuadrupleWithSingle && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::QuadrupleWithSingle && !currentToken.cards.empty())
 			switch (this->lastToken.tokenType)
@@ -1640,7 +1845,7 @@ private:
 		else
 			return false;
 	}
-	string getPreRoundString() const override final
+	const string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
 			return "暂无预备回合信息。";
@@ -1664,7 +1869,7 @@ public:
 	{
 		this->pokerType = "锄大地";
 	}
-	bool initialize() override final
+	const bool initialize() override final
 	{
 		if (this->status >= Status::Ready)
 		{
@@ -1686,8 +1891,8 @@ public:
 		else
 			return false;
 	}
-	bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
-	bool deal() override final
+	const bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
+	const bool deal() override final
 	{
 		if (this->status >= Status::Initialized)
 		{
@@ -1712,7 +1917,7 @@ public:
 		else
 			return false;
 	}
-	virtual bool getAmounts(vector<Amount>& _amounts) override final
+	virtual const bool computeAmounts() override final
 	{
 		if (Status::Over == this->status)
 			switch (this->amounts.size())
@@ -1755,7 +1960,6 @@ public:
 				}
 			}
 			case 4:
-				_amounts = vector<Amount>(this->amounts);
 				return true;
 			default:
 				return false;
@@ -1763,7 +1967,7 @@ public:
 		else
 			return false;
 	}
-	bool display(const vector<Player>& selectedPlayers) const override final
+	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "方块3 先出", "");
 	}
@@ -1772,7 +1976,7 @@ public:
 class ThreeTwoOne : public PokerGame /* Previous: BigTwo | Next: Wuguapi */
 {
 private:
-	bool processToken(Token& token) const override final
+	const bool processToken(Token& token) const override final
 	{
 		vector<Count> counts(14);
 		for (const Card& card : token.cards)
@@ -1840,7 +2044,7 @@ private:
 			}
 			else if (3 == counts[0] && 2 == counts[1])
 			{
-				token.tokenType = TokenType::TripleStraightWithPairs;
+				token.tokenType = TokenType::TripleWithPair;
 				return true;
 			}
 			else if (this->judgeStraight(token.cards) == 1)
@@ -2188,18 +2392,18 @@ private:
 			return false;
 		}
 	}
-	virtual bool isAbsolutelyLargest(const Token& token) const override final
+	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
 		return TokenType::Single <= token.tokenType && token.tokenType <= TokenType::QuadrupleStraightWithSingle && !token.cards.empty() && 2 == token.cards[0].point;
 	}
-	bool coverLastToken(const Token& currentToken) const override final
+	const bool coverLastToken(const Token& currentToken) const override final
 	{
 		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::QuadrupleStraightWithSingle && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::QuadrupleStraightWithSingle && !currentToken.cards.empty())
 			return (currentToken.tokenType == this->lastToken.tokenType || (TokenType::TripleWithPairSingle == this->lastToken.tokenType && TokenType::TripleStraight == currentToken.tokenType)) && currentToken.cards.size() == this->lastToken.cards.size() && this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point];
 		else
 			return false;
 	}
-	string getPreRoundString() const override final
+	const string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
 			return "暂无预备回合信息。";
@@ -2223,7 +2427,7 @@ public:
 	{
 		this->pokerType = "三两一";
 	}
-	bool initialize() override final
+	const bool initialize() override final
 	{
 		if (this->status >= Status::Ready)
 		{
@@ -2245,8 +2449,8 @@ public:
 		else
 			return false;
 	}
-	bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
-	bool deal() override final
+	const bool initialize(const size_t playerCount) override final { return 3 == playerCount && this->initialize(); }
+	const bool deal() override final
 	{
 		if (this->status >= Status::Initialized)
 		{
@@ -2271,7 +2475,7 @@ public:
 		else
 			return false;
 	}
-	bool nextPlayer() override final
+	const bool nextPlayer() override final
 	{
 		if (this->records.empty() || this->currentPlayer >= 4)
 			return false;
@@ -2296,7 +2500,7 @@ public:
 			return false;
 		}
 	}
-	virtual bool getAmounts(vector<Amount>& _amounts) override final
+	virtual const bool computeAmounts() override final
 	{
 		if (Status::Over == this->status)
 			switch (this->amounts.size())
@@ -2358,7 +2562,6 @@ public:
 					this->amounts[winner] = s;
 			}
 			case 4:
-				_amounts = vector<Amount>(this->amounts);
 				return true;
 			default:
 				this->amounts.clear();
@@ -2367,7 +2570,7 @@ public:
 		else
 			return false;
 	}
-	bool display(const vector<Player>& selectedPlayers) const override final
+	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "方块3 先出", "");
 	}
@@ -2376,7 +2579,7 @@ public:
 class Wuguapi : public PokerGame /* Previous: ThreeTwoOne | Next: Qiguiwueryi */
 {
 private:
-	bool processToken(Token& token) const override final
+	const bool processToken(Token& token) const override final
 	{
 		vector<Count> counts(14);
 		for (const Card& card : token.cards)
@@ -2466,7 +2669,7 @@ private:
 			}
 			else if (3 == counts[0] && 2 == counts[1])
 			{
-				token.tokenType = TokenType::TripleStraightWithPairs;
+				token.tokenType = TokenType::TripleWithPair;
 				return true;
 			}
 			else
@@ -2492,7 +2695,7 @@ private:
 			return false;
 		}
 	}
-	bool isOver() const override final
+	const bool isOver() const override final
 	{
 		if (this->status >= Status::Started && this->deck.empty())
 		{
@@ -2507,11 +2710,11 @@ private:
 		}
 		return false;
 	}
-	virtual bool isAbsolutelyLargest(const Token& token) const override final
+	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
 		return false;
 	}
-	bool coverLastToken(const Token& currentToken) const override final
+	const bool coverLastToken(const Token& currentToken) const override final
 	{
 		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::QuadrupleWithSingle && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::QuadrupleWithSingle && !currentToken.cards.empty())
 			switch (this->lastToken.tokenType)
@@ -2562,7 +2765,7 @@ private:
 		else
 			return false;
 	}
-	string getPreRoundString() const override final
+	const string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
 			return "暂无预备回合信息。";
@@ -2588,8 +2791,8 @@ public:
 	{
 		this->pokerType = "五瓜皮";
 	}
-	bool initialize() override final { return this->initialize(2); }
-	bool initialize(const size_t playerCount) override final
+	const bool initialize() override final { return this->initialize(2); }
+	const bool initialize(const size_t playerCount) override final
 	{
 		if (this->status >= Status::Ready && 2 <= playerCount && playerCount <= 10)
 		{
@@ -2612,7 +2815,7 @@ public:
 		else
 			return false;
 	}
-	bool deal() override final
+	const bool deal() override final
 	{
 		if (this->status >= Status::Initialized)
 		{
@@ -2638,7 +2841,7 @@ public:
 		else
 			return false;
 	}
-	bool getAmounts(vector<Amount>& _amounts) override final
+	const bool computeAmounts() override final
 	{
 		if (Status::Over == this->status)
 		{
@@ -2647,13 +2850,12 @@ public:
 
 				/////
 			}
-			_amounts = vector<Amount>(this->amounts);
 			return true;
 		}
 		else
 			return false;
 	}
-	bool display(const vector<Player>& selectedPlayers) const override final
+	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "最小先出", "牌堆（自下往上）：" + this->cards2string(this->deck, "", " | ", "", "（空）") + "\n\n");
 	}
@@ -2662,7 +2864,7 @@ public:
 class Qiguiwueryi : public PokerGame /* Previous: ThreeTwoOne | Next: Qiguiwuersan */
 {
 private:
-	bool processToken(Token& token) const override final
+	const bool processToken(Token& token) const override final
 	{
 		vector<Count> counts(14);
 		for (const Card& card : token.cards)
@@ -2708,7 +2910,7 @@ private:
 			return false;
 		}
 	}
-	bool isOver() const override final
+	const bool isOver() const override final
 	{
 		if (this->status >= Status::Started && this->deck.empty())
 		{
@@ -2723,11 +2925,11 @@ private:
 		}
 		return false;
 	}
-	virtual bool isAbsolutelyLargest(const Token& token) const override final
+	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
 		return (TokenType::Single == token.tokenType || TokenType::Pair == token.tokenType || TokenType::Triple == token.tokenType || TokenType::Quadruple == token.tokenType) && (!token.cards.empty() && Card { 7, Suit::Spade } == token.cards[0]);
 	}
-	bool coverLastToken(const Token& currentToken) const override final
+	const bool coverLastToken(const Token& currentToken) const override final
 	{
 		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::Quadruple && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::Quadruple && !currentToken.cards.empty())
 			switch (this->lastToken.tokenType)
@@ -2745,7 +2947,7 @@ private:
 		else
 			return false;
 	}
-	string getPreRoundString() const override final
+	const string getPreRoundString() const override final
 	{
 		if (this->records.empty() || this->records[0].empty())
 			return "暂无预备回合信息。";
@@ -2771,8 +2973,8 @@ public:
 	{
 		this->pokerType = "七鬼五二一";
 	}
-	bool initialize() override { return this->initialize(2); }
-	bool initialize(const size_t playerCount) override
+	const bool initialize() override { return this->initialize(2); }
+	const bool initialize(const size_t playerCount) override
 	{
 		if (this->status >= Status::Ready && 2 <= playerCount && playerCount <= 7)
 		{
@@ -2800,7 +3002,7 @@ public:
 		else
 			return false;
 	}
-	bool deal() override final
+	const bool deal() override final
 	{
 		if (this->status >= Status::Initialized)
 		{
@@ -2826,7 +3028,7 @@ public:
 		else
 			return false;
 	}
-	bool getAmounts(vector<Amount>& _amounts) override final
+	const bool computeAmounts() override final
 	{
 		if (Status::Over == this->status)
 		{
@@ -2835,13 +3037,12 @@ public:
 
 				/////
 			}
-			_amounts = vector<Amount>(this->amounts);
 			return true;
 		}
 		else
 			return false;
 	}
-	bool display(const vector<Player>& selectedPlayers) const override final
+	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "最小先出", "牌堆（自下往上）：" + this->cards2string(this->deck, "", " | ", "", "（空）") + "\n\n");
 	}
@@ -2854,8 +3055,8 @@ public:
 	{
 		this->pokerType = "七鬼五二三";
 	}
-	bool initialize() override final { return this->initialize(2); }
-	bool initialize(const size_t playerCount) override final
+	const bool initialize() override final { return this->initialize(2); }
+	const bool initialize(const size_t playerCount) override final
 	{
 		if (this->status >= Status::Ready && 2 <= playerCount && playerCount <= 7)
 		{
@@ -2900,10 +3101,11 @@ private:
 	vector<SortingMethod> sortingMethods{};
 	PokerGame* pokerGame = nullptr;
 	const vector<string> landlordStatements = { "Y", "yes", "1", "T", "true", "是", "叫", "叫地主", "叫牌", "抢", "抢地主", "抢牌" };
-	const vector<string> returnStatements = { "R", "Return", "返回", "返回主面板", "返回主界面" };
+	const vector<string> againStatements = { "Again", "再来", "再来一局", "新开", "新开一局" };
+	const vector<string> returnStatements = { "Return", "返回", "返回主面板", "返回主界面" };
 	const vector<string> exitStatements = { "Exit", "Ctrl+C", "Ctrl + C", "退出", "退出程序" };
 
-	bool isEqual(const string& s1, const string& s2) const // Please use == directly if cases cannot be ignored
+	const bool isEqual(const string& s1, const string& s2) const // Please use == directly if cases cannot be ignored
 	{
 		if (s1.length() == s2.length())
 		{
@@ -2923,14 +3125,14 @@ private:
 		else
 			return false;
 	}
-	bool isIn(const string& s, const vector<string>& strings) const
+	const bool isIn(const string& s, const vector<string>& strings) const
 	{
 		for (const string& str : strings)
 			if (this->isEqual(s, str))
 				return true;
 		return false;
 	}
-	void replaceAll(string& str, const string& oldSubString, const string& newSubString) const
+	const void replaceAll(string& str, const string& oldSubString, const string& newSubString) const
 	{
 		size_t pos = 0;
 		while ((pos = str.find(oldSubString, pos)) != string::npos)
@@ -2940,7 +3142,7 @@ private:
 		}
 		return;
 	}
-	void optimizePokerType(string& _pokerType) const
+	const void optimizePokerType(string& _pokerType) const
 	{
 		if (!this->isIn(_pokerType, this->pokerTypesE))
 		{
@@ -2957,7 +3159,7 @@ private:
 		}
 		return;
 	}
-	string vector2string(const vector<string>& strings, const string& prefix, const string& separator, const string& suffix) const
+	const string vector2string(const vector<string>& strings, const string& prefix, const string& separator, const string& suffix) const
 	{
 		string stringBuffer = prefix;
 		const size_t length = strings.size();
@@ -2970,7 +3172,7 @@ private:
 		stringBuffer += suffix;
 		return stringBuffer;
 	}
-	bool printHelp()
+	const bool printHelp()
 	{
 		cout << "通用扑克牌实现与解杀程序。" << endl << endl << endl;
 		switch (this->helpKey)
@@ -3014,7 +3216,7 @@ private:
 			return 1 == this->helpKey;
 		}
 	}
-	int clearScreen() const
+	const int clearScreen() const
 	{
 #if defined _WIN32 || defined _WIN64
 		return system("cls");
@@ -3022,7 +3224,7 @@ private:
 		return system("clear");
 #endif
 	}
-	void getDescription(string& description) const
+	const void getDescription(string& description) const
 	{
 		rewind(stdin);
 		fflush(stdin);
@@ -3033,7 +3235,7 @@ private:
 			description.pop_back();
 		return;
 	}
-	size_t fetchPlayerCount(size_t lowerBound, size_t upperBound) const // lowerBound cannot be 0
+	const size_t fetchPlayerCount(size_t lowerBound, size_t upperBound) const // lowerBound cannot be 0
 	{
 		if (lowerBound <= this->playerCount && this->playerCount <= upperBound)
 			return this->playerCount;
@@ -3058,7 +3260,7 @@ private:
 			}
 		}
 	}
-	bool fetchPokerType()
+	const bool fetchPokerType()
 	{
 		this->optimizePokerType(this->pokerType);
 		if (!this->isIn(this->pokerType, this->pokerTypesC) && !this->isIn(this->pokerType, this->pokerTypesE))
@@ -3103,7 +3305,7 @@ private:
 			this->playerCount = 0;
 		return true;
 	}
-	bool fetchBinaryChars(const string& filePath, char binaryChars[]) const // return true if the parameter is a good file to be read
+	const bool fetchBinaryChars(const string& filePath, char binaryChars[]) const // return true if the parameter is a good file to be read
 	{
 		ifstream ifs(filePath, ios::binary);
 		if (ifs.is_open())
@@ -3115,14 +3317,42 @@ private:
 		else
 			return false;
 	}
-	bool ensureAction(const string& buffer, const string& actionDescriptioin) const
+	const bool ensureAction(const string& buffer, const string& actionDescriptioin) const
 	{
 		string repeatedBuffer{};
 		cout << "您确定要" << actionDescriptioin << "吗？请再次输入以上指令以确认：";
 		this->getDescription(repeatedBuffer);
 		return buffer == repeatedBuffer;
 	}
-	bool setLandlord(bool& exitFlag) const
+	const bool controlAction(const string& buffer, Action& action) const
+	{
+		if (this->isIn(buffer, this->againStatements))
+		{
+			if (this->ensureAction(buffer, "新开一局"))
+			{
+				action = Action::Again;
+				return true;
+			}
+		}
+		else if (this->isIn(buffer, this->returnStatements))
+		{
+			if (this->ensureAction(buffer, "返回主界面"))
+			{
+				action = Action::Return;
+				return true;
+			}
+		}
+		else if (this->isIn(buffer, this->exitStatements))
+		{
+			if (this->ensureAction(buffer, "退出程序"))
+			{
+				action = Action::Exit;
+				return true;
+			}
+		}
+		return false;
+	}
+	const bool setLandlord(Action& action) const
 	{
 		Player player = INVALID_PLAYER;
 		string buffer{};
@@ -3138,19 +3368,8 @@ private:
 				this->pokerGame->display(this->sortingMethods.empty() ? INVALID_PLAYER : player);
 				cout << "请玩家 " << (player + 1) << " 选择是否" << (isRobbing ? "抢" : "叫") << "地主：";
 				this->getDescription(buffer);
-				if (this->isIn(buffer, returnStatements))
-				{
-					if (this->ensureAction(buffer, "返回"))
-						return false;
-				}
-				else if (this->isIn(buffer, exitStatements))
-				{
-					if (this->ensureAction(buffer, "退出程序"))
-					{
-						exitFlag = true;
-						return false;
-					}
-				}
+				if (this->controlAction(buffer, action))
+					return false;
 				else if (!buffer.empty())
 					if (this->isIn(buffer, this->landlordStatements))
 					{
@@ -3172,19 +3391,8 @@ private:
 					this->pokerGame->display(this->sortingMethods.empty() ? INVALID_PLAYER : player);
 					cout << "请玩家 " << (player + 1) << " 选择是否抢地主：";
 					this->getDescription(buffer);
-					if (this->isIn(buffer, returnStatements))
-					{
-						if (this->ensureAction(buffer, "返回"))
-							return false;
-					}
-					else if (this->isIn(buffer, exitStatements))
-					{
-						if (this->ensureAction(buffer, "退出程序"))
-						{
-							exitFlag = true;
-							return false;
-						}
-					}
+					if (this->controlAction(buffer, action))
+						return false;
 					else if (this->pokerGame->setLandlord(this->isIn(buffer, this->landlordStatements)))
 						break;
 				}
@@ -3199,7 +3407,7 @@ private:
 		}
 		return true;
 	}
-	bool setLandlord4P(bool& exitFlag) const
+	const bool setLandlord4P(Action& action) const
 	{
 		Player player = INVALID_PLAYER;
 		string buffer{};
@@ -3215,19 +3423,8 @@ private:
 				this->pokerGame->display(this->sortingMethods.empty() ? INVALID_PLAYER : player);
 				cout << "请玩家 " << (player + 1) << " 选择（" << this->vector2string(scoreDescriptions, "", " | ", "") << "）：";
 				this->getDescription(buffer);
-				if (this->isIn(buffer, returnStatements))
-				{
-					if (this->ensureAction(buffer, "返回"))
-						return false;
-				}
-				else if (this->isIn(buffer, exitStatements))
-				{
-					if (this->ensureAction(buffer, "退出程序"))
-					{
-						exitFlag = true;
-						return false;
-					}
-				}
+				if (this->controlAction(buffer, action))
+					return false;
 				else if (!buffer.empty())
 				{
 					const char scoreChar = buffer.at(0) - '0';
@@ -3270,7 +3467,7 @@ private:
 		}
 		return true;
 	}
-	void resetAll()
+	const void resetAll()
 	{
 		this->helpKey = 0;
 		this->pokerType = "扑克牌";
@@ -3283,7 +3480,7 @@ private:
 		}
 		return;
 	}
-	bool start(bool& exitFlag) const
+	const bool start(Action& action) const
 	{
 		Player player = INVALID_PLAYER;
 		string buffer{};
@@ -3294,25 +3491,14 @@ private:
 			this->pokerGame->display(this->sortingMethods.empty() ? INVALID_PLAYER : player);
 			cout << "请玩家 " << (player + 1) << " 开牌：";
 			this->getDescription(buffer);
-			if (this->isIn(buffer, returnStatements))
-			{
-				if (this->ensureAction(buffer, "返回"))
-					return false;
-			}
-			else if (this->isIn(buffer, exitStatements))
-			{
-				if (this->ensureAction(buffer, "退出程序"))
-				{
-					exitFlag = true;
-					return false;
-				}
-			}
+			if (this->controlAction(buffer, action))
+				return false;
 			else if (this->pokerGame->start(buffer))
 				break;
 		}
 		return true;
 	}
-	bool play(bool& exitFlag) const
+	const bool play(Action& action) const
 	{
 		Player player = INVALID_PLAYER;
 		string buffer{};
@@ -3325,19 +3511,8 @@ private:
 				this->pokerGame->display(this->sortingMethods.empty() ? INVALID_PLAYER : player);
 				cout << "请玩家 " << (player + 1) << " 出牌：";
 				this->getDescription(buffer);
-				if (this->isIn(buffer, returnStatements))
-				{
-					if (this->ensureAction(buffer, "返回"))
-						return false;
-				}
-				else if (this->isIn(buffer, exitStatements))
-				{
-					if (this->ensureAction(buffer, "退出程序"))
-					{
-						exitFlag = true;
-						return false;
-					}
-				}
+				if (this->controlAction(buffer, action))
+					return false;
 				else if (this->pokerGame->play(buffer))
 					break;
 			}
@@ -3415,7 +3590,7 @@ public:
 			}
 		}
 	}
-	bool interact()
+	const bool interact()
 	{
 		if (this->helpKey)
 			return this->printHelp();
@@ -3446,7 +3621,7 @@ public:
 				if (this->playerCount ? this->pokerGame->initialize(this->playerCount) : this->pokerGame->initialize())
 				{
 					this->clearScreen();
-					cout << "请输入“/”并按下回车键开局，或录入残局库数据：";
+					cout << "当前牌局（" << this->pokerType << "）已初始化，但暂未开局，请发牌或录入残局数据。" << endl << "请输入“/”并按下回车键开局，或录入残局库数据：";
 					for (;;)
 					{
 						string buffer{};
@@ -3466,50 +3641,70 @@ public:
 								cout << "录入失败！请输入“/”并按下回车键开局，或再次尝试录入残局库数据：";
 						}
 					}
-					bool exitFlag = false;
+
+					/* setLandlord(4P) */
+					Action action = Action::None;
 					if ("斗地主" == this->pokerType)
-					{
-						if (!this->setLandlord(exitFlag))
-							if (exitFlag)
-								return true;
-							else
-							{
-								this->resetAll();
-								continue;
-							}
-					}
+						this->setLandlord(action);
 					else if ("四人斗地主" == this->pokerType)
+						this->setLandlord4P(action);
+					switch (action)
 					{
-						if (!this->setLandlord4P(exitFlag))
-							if (exitFlag)
-								return true;
-							else
-							{
-								this->resetAll();
-								continue;
-							}
+					case Action::Return:
+						this->resetAll();
+					case Action::Again:
+						continue;
+					case Action::Exit:
+						return true;
+					default:
+						break;
 					}
-					if (!this->start(exitFlag))
+
+					/* start */
+					this->start(action);
+					switch (action)
 					{
-						if (exitFlag)
-							return true;
-						else
-						{
-							this->resetAll();
-							continue;
-						}
+					case Action::Return:
+						this->resetAll();
+					case Action::Again:
+						continue;
+					case Action::Exit:
+						return true;
+					default:
+						break;
 					}
-					if (!this->play(exitFlag))
-						if (exitFlag)
-							return true;
-						else
-						{
-							this->resetAll();
-							continue;
-						}
-					cout << "此局已终，程序即将返回。" << endl;
-					this_thread::sleep_for(chrono::seconds(TIME_FOR_SLEEP));
-					this->resetAll();
+
+					/* play */
+					this->play(action);
+					switch (action)
+					{
+					case Action::Return:
+						this->resetAll();
+					case Action::Again:
+						continue;
+					case Action::Exit:
+						return true;
+					default:
+						break;
+					}
+
+					/* over */
+					this->clearScreen();
+					this->pokerGame->display();
+					cout << "此局已终，请按 A 键再来一局，按 E 键退出程序，按其它键更改扑克牌游戏：";
+					rewind(stdin);
+					fflush(stdin);
+					switch (getchar())
+					{
+					case 'A':
+					case 'a':
+						break;
+					case 'E':
+					case 'e':
+						return true;
+					default:
+						this->resetAll();
+					}
 				}
 				else
 				{

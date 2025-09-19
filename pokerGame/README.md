@@ -8,20 +8,19 @@
 
 该代码支持命令行启动，在 Windows 下应当使用 Visual Studio 进行编译，在其它平台下可使用 g++ 直接编译，要求编译器支持 C++11 或更高标准。
 
-前有代码即证明（Code as proof），现有代码即规则（Code as rules）。
-
 基类成员变量：
 
 ```
 protected:
 	mt19937 seed{}; // 用于存储随机数种子
 	string pokerType = "扑克牌"; // 用于存储扑克牌类型
-	Value values[14] = { 0 }; // 用于存储大小
+	Values values{}; // 用于存储大小
 	vector<vector<Card>> players{}; // 用于存储玩家手上的扑克牌
 	vector<Card> deck{}; // 用于存储地主牌或牌堆
 	vector<vector<Token>> records{}; // 用于存储游戏记录
-	Player currentPlayer = (Player)(-1); // 用于指示当前需要进行操作的玩家
-	Token* pLastToken = nullptr; // 用于存储指向最后一次非空 token 的指针
+	Player currentPlayer = INVALID_PLAYER, dealer = INVALID_PLAYER; // 分别用于指示当前需要进行操作和首轮第一位出牌的玩家
+	Token lastToken{}; // 用于存储最后一手非空 token
+	vector<Amount> amounts{}; // 用于存储结算信息
 	Status status = Status::Ready; // 用于存储状态
 ```
 
@@ -37,18 +36,49 @@ protected:
 8) set：导入牌局，该过程将先尝试将参数作为文件路径进行处理，处理失败则将参数作为数据进行处理；该过程仅允许不低于 Initialized 的状态下被调用；调用成功后，状态将根据导入牌局的情况进行自适应变更。
 9) display：显示牌局；该过程允许在任何状态下被调用；由于该过程是只读的，故不会发生状态变更。
 
+基类中需要被（部分）派生类重写的子函数：
+
+/* PokerGame::deal */
+| 序号 | 函数签名 | 重写 | 描述 |
+| - | - | - | - |
+| 1 | assignDealer | 部分重写 | 需要被斗地主和四人斗地主重写 |
+
+/* PokerGame::setLandlord */
+| 序号 | 函数签名 | 重写 | 描述 |
+| - | - | - | - |
+| 1 | nextPlayer | 部分重写 | 需要被三两一重写（禁止回打） |
+
+/* PokerGame::start and PokerGame::play */
+| 序号 | 函数签名 | 重写 | 描述 |
+| - | - | - | - |
+| 1 | checkStarting | 部分重写 | 需要被斗地主和四人斗地主重写（首轮第一手牌必须带有最小的牌） |
+| 2 | processToken | 纯虚函数 | 根据每个派生类实现 token 类型的界定 |
+| 3 | isOver | 部分重写 | 需要被五瓜皮、七鬼五二一和七鬼五二三重写（牌堆为空且只剩一位玩家时） |
+| 4 | processAmounts | 部分重写 | 需要被斗地主和四人斗地主重写（实时显示倍数信息） |
+| 5 | isAbsolutelyLargest | 纯虚函数 | 不同扑克牌类型均有各自的实现 |
+| 6 | coverLastToken | 纯虚函数 | 不同扑克牌类型均有各自的实现 |
+| 7 | computeAmounts | 纯虚函数 | 游戏结束时计算结算信息 |
+
+/* PokerGame::display */
+| 序号 | 函数签名 | 重写 | 描述 |
+| - | - | - | - |
+| 1 | getBasisString | 部分重写 | 需要被斗地主和四人斗地主重写（需要实时显示倍数信息） |
+| 2 | getPreRoundString | 纯虚函数 | 不同扑克牌类型均有不同的预备回合信息展示 |
+
 编程风格：
 
 1) 代码块排序：头文件 -> 宏 -> 简易类型定义 -> constexpr -> 命名空间 -> 枚举类 -> 结构体 -> 类（成员 -> 私有方法 -> 受保护方法 -> 公有方法）-> 非 main 函数 -> main 函数；
 2) 变量排序：从 main 函数开始从上往下进行扫描符号，每出现新符号时依照代码块排序放置在其所属代码块中最后的位置，如新符号与当前符号属于同一代码块，则放置在代码块内当前符号前的最后位置，随后递归地从上往下扫描新符号中的新符号执行相应的操作以完成排序；
 3) 最小权限原则：对方法在满足设计需求范围的前提下使用最受限的修饰符，例如使用 const 修饰不对成员做出修改的方法，使用 private 声明私有函数等；
-4) 虚函数：虚函数在重写时必须带有 override 修饰符，在最后实现时必须带有 final 修饰符。
+4) 虚函数：虚函数在基类中必须使用 virtual 修饰符，在派生类中不使用 virtual 修饰符，重写时必须使用 override 修饰符，作为最后实现时必须带有 final 修饰符。
 
 ### 规则
 
+前有代码即证明（Code as proof），现有代码即规则（Code as rules）。
+
 #### 斗地主
 
-### 参阅
+##### 参阅
 
 斗地主规则（出自《象棋百科全书》）：[https://www.xqbase.com/other/landlord.htm](https://www.xqbase.com/other/landlord.htm)
 
