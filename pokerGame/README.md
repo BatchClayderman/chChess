@@ -48,16 +48,20 @@ protected:
 | - | - | - | - |
 | 1 | nextPlayer | 部分重写 | 需要被三两一重写（禁止回打） |
 
-/* PokerGame::start and PokerGame::play */
+/* PokerGame::start */
 | 序号 | 函数签名 | 重写 | 描述 |
 | - | - | - | - |
 | 1 | checkStarting | 部分重写 | 需要被斗地主和四人斗地主重写（首轮第一手牌必须带有最小的牌） |
 | 2 | processToken | 纯虚函数 | 根据每个派生类实现 token 类型的界定 |
-| 3 | isOver | 部分重写 | 需要被五瓜皮、七鬼五二一和七鬼五二三重写（牌堆为空且只剩一位玩家时） |
-| 4 | processAmounts | 部分重写 | 需要被斗地主和四人斗地主重写（实时显示倍数信息） |
-| 5 | isAbsolutelyLargest | 纯虚函数 | 不同扑克牌类型均有各自的实现 |
-| 6 | coverLastToken | 纯虚函数 | 不同扑克牌类型均有各自的实现 |
-| 7 | computeAmounts | 纯虚函数 | 游戏结束时计算结算信息 |
+| 3 | processBasis | 部分重写 | 需要被斗地主和四人斗地主重写（实时显示倍数信息） |
+| 4 | isOver | 部分重写 | 需要被五瓜皮、七鬼五二一和七鬼五二三重写（牌堆为空且只剩一位玩家时） |
+| 5 | computeAmounts | 纯虚函数 | 游戏结束时计算结算信息 |
+| 6 | isAbsolutelyLargest | 纯虚函数 | 不同扑克牌类型均有各自的实现 |
+
+/* PokerGame::play */
+| 序号 | 函数签名 | 重写 | 描述 |
+| - | - | - | - |
+| 1 | coverLastToken | 纯虚函数 | 不同扑克牌类型均有各自的实现 |
 
 /* PokerGame::display */
 | 序号 | 函数签名 | 重写 | 描述 |

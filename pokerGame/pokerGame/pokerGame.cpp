@@ -129,10 +129,6 @@ struct Card
 	{
 		return a.point == b.point && a.suit == b.suit;
 	}
-	friend bool operator==(const Card& card, const Point& point)
-	{
-		return card.point == point;
-	}
 	operator const string() const
 	{
 		string stringBuffer{};
@@ -369,7 +365,7 @@ protected:
 			return false;
 	}
 	
-	/* PokerGame::start and PokerGame::play */
+	/* PokerGame::start */
 	virtual const bool description2cards(const string& description, vector<Card>& cards) const final
 	{
 		if ("/" == description || "\\" == description || "-" == description || "--" == description || "要不起" == description || "不出" == description || "不打" == description)
@@ -585,36 +581,78 @@ protected:
 	{
 		return !cards.empty() && (this->records[0].back().cards.size() == 1 && find(cards.begin(), cards.end(), this->records[0].back().cards[0]) != cards.end());
 	}
-	virtual Count judgeStraight(vector<Card>& cards) const final // The vector ``cards`` must be sorted according to ``SortingMethod::FromManyToFew``. 
+	virtual const Count judgeStraight(vector<Card>& cards, const vector<Point>& pointsNotAllowed, const bool multiplePointsAreForAll) const final // The vector ``cards`` must be sorted according to ``SortingMethod::FromManyToFew``. 
 	{
+		/* Packing */
 		if (cards.empty())
 			return 0;
-		vector<vector<Card>> items{};
 		Point lastPoint = JOKER_POINT;
-		for (const Card& card : cards)
-			if (JOKER_POINT == card.point)
+		vector<vector<Card>> items{};
+		const Count pointCount = pointsNotAllowed.size();
+		Count appearanceCount = 0;
+		switch (pointCount)
+		{
+		case 0:
+			for (const Card& card : cards)
+				if (JOKER_POINT == card.point || 0 == this->values[card.point])
+					return false;
+				else if (lastPoint == card.point)
+					items.back().push_back(card);
+				else
+				{
+					items.push_back(vector<Card>{ card });
+					lastPoint = card.point;
+				}
+			break;
+		case 1:
+			for (const Card& card : cards)
+				if (JOKER_POINT == card.point || find_if(pointsNotAllowed.begin(), pointsNotAllowed.end(), [&card](const Point& point) { return point == card.point; }) != pointsNotAllowed.end() || 0 == this->values[card.point])
+					return false;
+				else if (lastPoint == card.point)
+					items.back().push_back(card);
+				else
+				{
+					items.push_back(vector<Card>{ card });
+					lastPoint = card.point;
+				}
+		default:
+			for (const Card& card : cards)
+				if (JOKER_POINT == card.point || 0 == this->values[card.point])
+					return false;
+				else if (lastPoint == card.point)
+				{
+					items.back().push_back(card);
+					if (find_if(pointsNotAllowed.begin(), pointsNotAllowed.end(), [&card](const Point& point) { return point == card.point; }) != pointsNotAllowed.end())
+						++appearanceCount;
+				}
+				else
+				{
+					items.push_back(vector<Card>{ card });
+					lastPoint = card.point;
+				}
+			if (multiplePointsAreForAll && appearanceCount >= pointCount)
 				return false;
-			else if (lastPoint == card.point)
-				items.back().push_back(card);
-			else
-			{
-				items.push_back(vector<Card>{ card });
-				lastPoint = card.point;
-			}
+		}
 		const Count repeatedCount = static_cast<Count>(items[0].size());
 		for (size_t idx = items.size() - 1; idx > 0; --idx)
 			if (items[idx].size() != repeatedCount)
 				return false;
+		
+		/* Straights from left to right */
 		size_t smallestPointer = 0, largestPointer = items.size() - 1;
 		while (smallestPointer < largestPointer)
-			if (this->values[items[smallestPointer][0].point] - this->values[items[smallestPointer + 1][0].point] == 1)
+			if (this->values[items[smallestPointer + 1][0].point] + 1 == this->values[items[smallestPointer][0].point])
 				++smallestPointer;
 			else
 				break;
 		if (smallestPointer == largestPointer)
 			return true;
+
+		/* Straights from middle to right, from the rightmost to the leftmost by circular shifting, and from left to middle */
+		if (pointCount >= 2 && appearanceCount >= pointCount)
+			return false;
 		while (largestPointer > smallestPointer)
-			if (this->values[items[largestPointer - 1][0].point] - this->values[items[largestPointer][0].point] == 1)
+			if (this->values[items[largestPointer][0].point] + 1 == this->values[items[largestPointer - 1][0].point])
 				--largestPointer;
 			else
 				break;
@@ -635,7 +673,7 @@ protected:
 		else
 			return 0;
 	}
-	virtual const bool processToken(Token& token) const = 0;
+	virtual const bool processToken(Token& token, vector<Token>& possibleTokens) const = 0;
 	virtual const bool removeCards(const vector<Card>& _smallerCards, vector<Card>& largerCards) const final // The vector ``largerCards`` must have been sorted according to the default sorting method. 
 	{
 		vector<Card> smallerCards = vector<Card>(_smallerCards);
@@ -665,6 +703,7 @@ protected:
 		else
 			return true;
 	}
+	virtual const bool processBasis(const Token& token) { UNREFERENCED_PARAMETER(token); return false; }
 	virtual const bool isOver() const
 	{
 		if (this->status >= Status::Started)
@@ -673,12 +712,13 @@ protected:
 					return true;
 		return false;
 	}
-	virtual const bool processAmounts(const Token& token) { UNREFERENCED_PARAMETER(token); return false; }
-	virtual const bool isAbsolutelyLargest(const Token& token) const = 0;
-	virtual const bool coverLastToken(const Token& currentToken) const = 0;
 	virtual const bool computeAmounts(const unsigned char multiplication1Opening7, const unsigned int basis12Calling4Robbing4Real4Empty4Spring4) { UNREFERENCED_PARAMETER(multiplication1Opening7); UNREFERENCED_PARAMETER(basis12Calling4Robbing4Real4Empty4Spring4); return false; }
 	virtual const bool computeAmounts() = 0;
-
+	virtual const bool isAbsolutelyLargest(const Token& token) const = 0;
+	
+	/* PokerGame::play */
+	virtual const bool coverLastToken(const Token& currentToken) const = 0;
+	
 	/* PokerGame::display */
 	virtual const string getBasisString() const { return ""; }
 	virtual const string cards2string(const vector<Card>& cards, const string& prefix, const string& separator, const string& suffix, const string& returnIfEmpty) const final
@@ -700,7 +740,7 @@ protected:
 	{
 		if (Status::Over == this->status && this->amounts.size() == this->players.size())
 		{
-			string amountString = "结算信息：";
+			string amountString = "/* 结算信息 */\n";
 			char playerBuffer[4] = { 0 }, amountBuffer[21] = { 0 };
 			const size_t playerCount = this->players.size();
 			for (Player player = 0; player < playerCount; ++player)
@@ -729,6 +769,7 @@ protected:
 		case Status::Started:
 		case Status::Over:
 		{
+			/* Beginning */
 			bool flag = true;
 			cout << "扑克牌类型：" << this->pokerType << "（";
 			switch (this->status)
@@ -749,16 +790,25 @@ protected:
 				break;
 			}
 			cout << "）" << endl << this->getBasisString() << endl;
+
+			/* Players */
+			cout << "/* 玩家区域 */" << endl;
 			const size_t playerCount = this->players.size();
-			for (const Player& player : selectedPlayers)
-				if (0 <= player && player < playerCount)
-					cout << "玩家 " << (player + 1) << (!this->records.empty() && !this->records[0].empty() && this->dealer == player ? "（" + dealerRemark + "）：" : "：") << endl << this->cards2string(this->players[player], "", " | ", "", "（空）") << endl << endl;
-				else
-					flag = false;
+			if (Status::Over == this->status)
+				for (Player player = 0; player < playerCount; ++player)
+					cout << "玩家 " << (player + 1) << (this->dealer == player ? "（" + dealerRemark + "）剩余 " : " 剩余 ") << this->players[player].size() << " 张扑克牌：" << this->cards2string(this->players[player], "\n", " | ", "", "（空）") << endl << endl;
+			else
+				for (Player player = 0; player < playerCount; ++player)
+					if (find(selectedPlayers.begin(), selectedPlayers.end(), player) == selectedPlayers.end())
+						cout << "玩家 " << (player + 1) << (this->dealer == player ? "（" + dealerRemark + "）剩余 " : " 剩余 ") << this->players[player].size() << " 张扑克牌：（不可见）" << endl << endl;
+					else
+						cout << "玩家 " << (player + 1) << (this->dealer == player ? "（" + dealerRemark + "）剩余 " : " 剩余 ") << this->players[player].size() << " 张扑克牌：" << this->cards2string(this->players[player], "\n", " | ", "", "（空）") << endl << endl;
 			cout << deckDescription;
-			if (this->status >= Status::Dealt && !this->records.empty())
+
+			/* Records */
+			if (!this->records.empty())
 			{
-				cout << "出牌记录：" << endl;
+				cout << "/* 出牌记录 */" << endl;
 				cout << "预备回合：" << this->getPreRoundString() << endl;
 				const size_t roundCount = this->records.size();
 				for (size_t round = 1; round < roundCount; ++round)
@@ -776,6 +826,8 @@ protected:
 					}
 				}
 				cout << endl;
+
+				/* Amounts */
 				if (Status::Over == this->status)
 					cout << this->getAmountString() << endl;
 			}
@@ -813,15 +865,15 @@ public:
 	}
 	virtual const bool setLandlord(const bool b) { UNREFERENCED_PARAMETER(b); return false; } // records[0], currentPlayer, dealer (const) -> dealer, lastToken -> lastToken (reset), amounts[0], and status (const) -> status = Status::Assigned
 	virtual const bool setLandlord(const LandlordScore landlordScore) { UNREFERENCED_PARAMETER(landlordScore); return false; } // records[0], currentPlayer, dealer (const) -> dealer, lastToken -> lastToken (reset), amounts[0], and status (const) -> status = Status::Assigned
-	virtual const bool start(const vector<Card>& cards) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status = Status::Started | Status::Over
+	virtual const bool start(const vector<Card>& cards, vector<Token>& possibleTokens) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status = Status::Started | Status::Over
 	{
 		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty() && 0 <= this->currentPlayer && this->currentPlayer < this->players.size() && this->checkStarting(cards))
 		{
 			Token token{ this->currentPlayer, cards };
-			if (this->processToken(token) && this->removeCards(cards, this->players[this->currentPlayer]))
+			if (this->processToken(token, possibleTokens) && this->removeCards(cards, this->players[this->currentPlayer]))
 			{
 				this->records.push_back(vector<Token>{ token });
-				this->processAmounts(token);
+				this->processBasis(token);
 				if (this->isOver())
 				{
 					this->currentPlayer = INVALID_PLAYER;
@@ -845,22 +897,22 @@ public:
 			return false;
 
 	}
-	virtual const bool start(const string& description) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status = Status::Started | Status::Over
+	virtual const bool start(const string& description, vector<Token>& possibleTokens) final // records[1], currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status = Status::Started | Status::Over
 	{
 		if (Status::Assigned == this->status && this->records.size() == 1 && !this->records[0].empty())
 		{
 			vector<Card> cards{};
-			return this->description2cards(description, cards) && this->start(cards);
+			return this->description2cards(description, cards) && this->start(cards, possibleTokens);
 		}
 		else
 			return false;
 	}
-	virtual const bool play(const vector<Card>& cards) final // records, currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status (const) -> status = Status::Over
+	virtual const bool play(const vector<Card>& cards, vector<Token>& possibleTokens) final // records, currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status (const) -> status = Status::Over
 	{
 		if (Status::Started == this->status && this->records.size() >= 2 && !this->records.back().empty() && 0 <= this->currentPlayer && this->currentPlayer < this->players.size() && this->lastToken)
 		{
 			Token token{ this->currentPlayer, cards };
-			if (this->processToken(token))
+			if (this->processToken(token, possibleTokens))
 				if (token.player == this->lastToken.player)
 					if (TokenType::Empty != token.tokenType && this->removeCards(cards, this->players[this->currentPlayer]))
 						if (this->coverLastToken(token))
@@ -881,7 +933,7 @@ public:
 					return false;
 			else
 				return false;
-			this->processAmounts(token);
+			this->processBasis(token);
 			if (this->isOver())
 			{
 				this->currentPlayer = INVALID_PLAYER;
@@ -900,12 +952,12 @@ public:
 		else
 			return false;
 	}
-	virtual const bool play(const string& description) final // records, currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status (const) -> status = Status::Over
+	virtual const bool play(const string& description, vector<Token>& possibleTokens) final // records, currentPlayer, lastToken, amounts (const) | amounts[0] | amounts(this->players.size()), and status (const) -> status = Status::Over
 	{
 		if (Status::Started == this->status && this->records.size() >= 2 && !this->records.back().empty())
 		{
 			vector<Card> cards{};
-			return this->description2cards(description, cards) && this->play(cards);
+			return this->description2cards(description, cards) && this->play(cards, possibleTokens);
 		}
 		else
 			return false;
@@ -914,6 +966,7 @@ public:
 	{
 		const size_t length = sizeof(binaryChars), playerCount = this->players.size();
 		vector<vector<Card>> newPlayers(playerCount);
+		vector<Token> possibleTokens{};
 		for (size_t idx = 0; idx < length; ++idx)
 		{
 			char keyChar = 0, valueBuffer[BUFFER_SIZE] = { 0 };
@@ -994,13 +1047,13 @@ public:
 					return false;
 			case 'S':
 			case 's':
-				if (this->start(valueBuffer))
+				if (this->start(valueBuffer, possibleTokens))
 					break;
 				else
 					return false;
 			case 'P':
 			case 'p':
-				if (this->play(valueBuffer))
+				if (this->play(valueBuffer, possibleTokens))
 					break;
 				else
 					return false;
@@ -1042,28 +1095,36 @@ private:
 	{
 		return !cards.empty();
 	}
-	const bool processToken(Token& token) const override final
+	const bool processToken(Token& token, vector<Token>& possibleTokens) const override
 	{
+		Count jokerCount = 0;
 		vector<Count> counts(14);
 		for (const Card& card : token.cards)
-			if (this->values[card.point])
+			if (JOKER_POINT == card.point)
+			{
+				if (++jokerCount > 2)
+					return false;
+			}
+			else if (this->values[card.point])
 				++counts[card.point];
 			else
 				return false;
+		if (counts[0] > 4)
+			return false;
 		sort(token.cards.begin(), token.cards.end(), [&counts, this](const Card a, const Card b) { return counts[a.point] > counts[b.point] || (counts[a.point] == counts[b.point] && this->values[a.point] > this->values[b.point]) || (counts[a.point] == counts[b.point] && this->values[a.point] == this->values[b.point] && a.suit > b.suit); });
 		sort(counts.begin(), counts.end(), [](const Count a, const Count b) { return a > b; });
 		switch (token.cards.size())
 		{
 		case 0:
-			token.tokenType = TokenType::Empty;
+			token.tokenType = TokenType::Empty; // 要不起
 			return true;
 		case 1:
-			token.tokenType = TokenType::Single;
+			token.tokenType = TokenType::Single; // 单张
 			return true;
 		case 2:
 			if (2 == counts[0])
 			{
-				token.tokenType = TokenType::Pair;
+				token.tokenType = JOKER_POINT == token.cards[0].point ? TokenType::PairJokers : TokenType::Pair; // 王炸 | 对子
 				return true;
 			}
 			else
@@ -1071,7 +1132,7 @@ private:
 		case 3:
 			if (3 == counts[0])
 			{
-				token.tokenType = TokenType::Triple;
+				token.tokenType = TokenType::Triple; // 三张
 				return true;
 			}
 			else
@@ -1079,54 +1140,196 @@ private:
 		case 4:
 			if (4 == counts[0])
 			{
-				token.tokenType = TokenType::Quadruple;
+				token.tokenType = TokenType::Quadruple; // 炸弹
+				return true;
+			}
+			else if (3 == counts[0]) // && 1 == counts[1]
+			{
+				token.tokenType = TokenType::TripleWithSingle; // 三带一
 				return true;
 			}
 			else
 				return false;
 		case 5:
-			if (5 == counts[0])
+			if (3 == counts[0] && 2 == counts[1])
+				if (JOKER_POINT == token.cards[3].point) // 双王不是对子 | 被带的牌不能含有双王
+					return false;
+				else
+				{
+					token.tokenType = TokenType::TripleWithPair; // 三带一对
+					return true;
+				}
+			else if (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true) == 1)
 			{
-				token.tokenType = TokenType::Quintuple;
-				return true;
-			}
-			else if (3 == counts[0] && 2 == counts[1])
-			{
-				token.tokenType = TokenType::TripleWithPair;
-				return true;
-			}
-			else if (this->judgeStraight(token.cards) == 1)
-			{
-				token.tokenType = TokenType::SingleStraight;
+				token.tokenType = TokenType::SingleStraight; // 顺子
 				return true;
 			}
 			else
 				return false;
 		case 6:
-			if (3 == counts[0] && 3 == counts[1])
+			if (4 == counts[0] && 2 == counts[2])
+				if (JOKER_POINT == token.cards[4].point || JOKER_POINT == token.cards[0].point)
+					return false;
+				else
+				{
+					token.tokenType = TokenType::QuadrupleWithSingleSingle; // 四带二单
+					return true;
+				}
+			else if (4 == counts[0] && 1 == counts[1]) // && 1 == counts[2]
 			{
-				if (token.cards[0].point)
-				token.tokenType = TokenType::TripleStraight;
+				token.tokenType = TokenType::QuadrupleWithSingleSingle; // 四带二单
 				return true;
 			}
-			else if (4 == counts[0] && 2 == counts[1])
+			else
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true))
+				{
+				case 1:
+					token.tokenType = TokenType::SingleStraight; // 顺子
+					return true;
+				case 2:
+					token.tokenType = TokenType::PairStraight; // 连对
+					return true;
+				case 3:
+					token.tokenType = TokenType::TripleStraight; // 飞机（不带翅膀）
+					return true;
+				default:
+					return false;
+				}
+		case 7:
+			if (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true) == 1)
 			{
-				// 四带二
-				token.tokenType = TokenType::QuadrupleWithSingleSingle;
-				return true;
-			}
-			else if (this->judgeStraight(token.cards) == 1)
-			{
-				token.tokenType = TokenType::SingleStraight;
+				token.tokenType = TokenType::SingleStraight; // 顺子
 				return true;
 			}
 			else
 				return false;
+		case 8:
+			if (4 == counts[0] && 2 == counts[1] && 2 == counts[2])
+				if (JOKER_POINT == token.cards[4].point || JOKER_POINT == token.cards[4].point || JOKER_POINT == token.cards[6].point)
+					return false;
+				else
+				{
+					token.tokenType = TokenType::QuadrupleWithPairPair; // 四带二对
+					return true;
+				}
+			else if (3 == counts[0] && 3 == counts[1] && 2 == counts[2])
+				if (JOKER_POINT == token.cards[6].point) // || JOKER_POINT == token.cards[0].point || JOKER_POINT == token.cards[3].point
+					return false;
+				else
+				{
+					vector<Card> bodyCards(token.cards.begin(), token.cards.begin() + 6);
+					if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 2 }, true))
+					{
+						bodyCards.push_back(token.cards[6]);
+						bodyCards.push_back(token.cards.back());
+						token.cards = bodyCards;
+						token.tokenType = TokenType::TripleStraightWithSingles; // 飞机带小翼
+						return true;
+					}
+					else
+						return false;
+				}
+			else if (3 == counts[0] && 3 == counts[1] && 1 == counts[2]) // && 1 == counts[3]
+			{
+				vector<Card> bodyCards(token.cards.begin(), token.cards.begin() + 6);
+				if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 2 }, true))
+				{
+					bodyCards.push_back(token.cards[6]);
+					bodyCards.push_back(token.cards.back());
+					token.cards = bodyCards;
+					token.tokenType = TokenType::TripleStraightWithSingles; // 飞机带小翼
+					return true;
+				}
+				else
+					return false;
+			}
+			else
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true))
+				{
+				case 1:
+					token.tokenType = TokenType::SingleStraight; // 顺子
+					return true;
+				case 2:
+					token.tokenType = TokenType::PairStraight; // 连对
+					return true;
+				default:
+					return false;
+				}
+		case 9:
+			switch (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true))
+			{
+			case 1:
+				token.tokenType = TokenType::SingleStraight; // 顺子
+				return true;
+			case 3:
+				token.tokenType = TokenType::TripleStraight; // 飞机（不带翅膀）
+				return true;
+			default:
+				return false;
+			}
+		case 10:
+			if (3 == counts[0] && 3 == counts[1] && 2 == counts[2] && 2 == counts[3])
+				if (JOKER_POINT == token.cards[0].point || JOKER_POINT == token.cards[3].point || JOKER_POINT == token.cards[6].point || JOKER_POINT == token.cards[8].point)
+					return false;
+				else
+				{
+					token.tokenType = TokenType::TripleStraightWithPairs; // 飞机带大翼
+					return true;
+				}
+			else
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true))
+				{
+				case 1:
+					token.tokenType = TokenType::SingleStraight; // 顺子
+					return true;
+				case 2:
+					token.tokenType = TokenType::PairStraight; // 连对
+					return true;
+				default:
+					return false;
+				}
+		case 11:
+			if (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true) == 1)
+			{
+				token.tokenType = TokenType::SingleStraight; // 顺子
+				return true;
+			}
+			else
+				return false;
+		case 12:
+			if (3 == counts[0] && 3 == counts[1] && 3 == counts[2] && 2 == counts[3] && 2 == counts[4] && 2 == counts[5])
+				if (JOKER_POINT == token.cards[0].point || JOKER_POINT == token.cards[3].point || JOKER_POINT == token.cards[6].point || JOKER_POINT == token.cards[9].point || JOKER_POINT == token.cards[11].point)
+					return false;
+				else
+				{
+					token.tokenType = TokenType::TripleStraightWithPairs; // 飞机带大翼
+					return true;
+				}
+			else if (3 == counts[0] && 3 == counts[1] && 3 == counts[2] && 1 == counts[3] && 1 == counts[4]) // && 1 == counts[5] && 1 == counts[6]
+				if (JOKER_POINT == token.cards[0].point || JOKER_POINT == token.cards[3].point || JOKER_POINT == token.cards[6].point)
+					return false;
+				else
+				{
+					token.tokenType = TokenType::TripleStraightWithSingles; // 飞机带小翼
+					return true;
+				}
+			else
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true))
+				{
+				case 1:
+					token.tokenType = TokenType::SingleStraight; // 顺子
+					return true;
+				case 2:
+					token.tokenType = TokenType::PairStraight; // 连对
+					return true;
+				default:
+					return false;
+				}
 		default:
 			return false;
 		}
 	}
-	const bool processAmounts(const Token& token) override final
+	const bool processBasis(const Token& token) override final
 	{
 		if (Status::Assigned <= this->status && this->status <= Status::Started && !this->records.empty() && !this->records.back().empty() && this->amounts.size() == 1)
 		{
@@ -1134,38 +1337,6 @@ private:
 				this->amounts[0] += token.player == this->lastToken.player ? 0b1 : 0b10000;
 			return true;
 		}
-		else
-			return false;
-	}
-	const bool isAbsolutelyLargest(const Token& token) const override final
-	{
-		return TokenType::PairJokers == token.tokenType;
-	}
-	const bool coverLastToken(const Token& currentToken) const override final
-	{
-		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::QuadrupleWithPairPair && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::QuadrupleWithPairPair && !currentToken.cards.empty())
-			switch (this->lastToken.tokenType)
-			{
-			case TokenType::Single: // 单张
-			case TokenType::SingleStraight: // 顺子
-			case TokenType::Pair: // 对子
-			case TokenType::PairStraight: // 连对
-			case TokenType::Triple: // 三条
-			case TokenType::TripleWithSingle: // 三带一
-			case TokenType::TripleWithPair: // 三带一对
-			case TokenType::TripleStraight: // 飞机（不拖不带）
-			case TokenType::TripleStraightWithSingles: // 飞机（带单张）
-			case TokenType::TripleStraightWithPairs: // 飞机（带对子）
-			case TokenType::QuadrupleWithSingleSingle: // 四带二（单张）
-			case TokenType::QuadrupleWithPairPair: // 四带二（对子）
-				return (TokenType::PairJokers == currentToken.tokenType || TokenType::Quadruple == currentToken.tokenType) || (currentToken.tokenType == this->lastToken.tokenType && currentToken.cards.size() == this->lastToken.cards.size() && this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point]);
-			case TokenType::PairJokers: // 王炸
-				return false;
-			case TokenType::Quadruple: // 炸弹
-				return TokenType::PairJokers == currentToken.tokenType || (TokenType::Quadruple == currentToken.tokenType && this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point]);
-			default:
-				return false;
-			}
 		else
 			return false;
 	}
@@ -1266,6 +1437,38 @@ private:
 	const bool computeAmounts() override final
 	{
 		return this->computeAmounts(0b10000000, 0b00000000101011001100110011001100);
+	}
+	const bool isAbsolutelyLargest(const Token& token) const override final
+	{
+		return TokenType::PairJokers == token.tokenType;
+	}
+	const bool coverLastToken(const Token& currentToken) const override final
+	{
+		if (this->lastToken && TokenType::Single <= this->lastToken.tokenType && this->lastToken.tokenType <= TokenType::QuadrupleWithPairPair && !this->lastToken.cards.empty() && TokenType::Single <= currentToken.tokenType && currentToken.tokenType <= TokenType::QuadrupleWithPairPair && !currentToken.cards.empty())
+			switch (this->lastToken.tokenType)
+			{
+			case TokenType::Single: // 单张
+			case TokenType::SingleStraight: // 顺子
+			case TokenType::Pair: // 对子
+			case TokenType::PairStraight: // 连对
+			case TokenType::Triple: // 三条
+			case TokenType::TripleWithSingle: // 三带一
+			case TokenType::TripleWithPair: // 三带一对
+			case TokenType::TripleStraight: // 飞机（不拖不带）
+			case TokenType::TripleStraightWithSingles: // 飞机（带单张）
+			case TokenType::TripleStraightWithPairs: // 飞机（带对子）
+			case TokenType::QuadrupleWithSingleSingle: // 四带二（单张）
+			case TokenType::QuadrupleWithPairPair: // 四带二（对子）
+				return (TokenType::PairJokers == currentToken.tokenType || TokenType::Quadruple == currentToken.tokenType) || (currentToken.tokenType == this->lastToken.tokenType && currentToken.cards.size() == this->lastToken.cards.size() && this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point]);
+			case TokenType::PairJokers: // 王炸
+				return false;
+			case TokenType::Quadruple: // 炸弹
+				return TokenType::PairJokers == currentToken.tokenType || (TokenType::Quadruple == currentToken.tokenType && this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point]);
+			default:
+				return false;
+			}
+		else
+			return false;
 	}
 	const string getBasisString() const
 	{
@@ -1475,10 +1678,132 @@ public:
 	}
 };
 
+class LandlordsX : public Landlords
+{
+protected:
+	const bool processToken(Token& token, vector<Token>& possibleTokens) const override final
+	{
+		Count jokerCount = 0;
+		vector<Count> counts(14);
+		for (const Card& card : token.cards)
+			if (JOKER_POINT == card.point)
+			{
+				if (++jokerCount > 2)
+					return false;
+			}
+			else if (this->values[card.point])
+				++counts[card.point];
+			else
+				return false;
+		if (counts[0] > 4)
+			return false;
+		sort(token.cards.begin(), token.cards.end(), [&counts, this](const Card a, const Card b) { return counts[a.point] > counts[b.point] || (counts[a.point] == counts[b.point] && this->values[a.point] > this->values[b.point]) || (counts[a.point] == counts[b.point] && this->values[a.point] == this->values[b.point] && a.suit > b.suit); });
+		sort(counts.begin(), counts.end(), [](const Count a, const Count b) { return a > b; });
+		switch (token.cards.size())
+		{
+		case 0:
+			token.tokenType = TokenType::Empty;
+			return true;
+		case 1:
+			token.tokenType = TokenType::Single;
+			return true;
+		case 2:
+			if (2 == counts[0])
+			{
+				token.tokenType = JOKER_POINT == token.cards[0].point ? TokenType::PairJokers : TokenType::Pair;
+				return true;
+			}
+			else
+				return false;
+		case 3:
+			if (3 == counts[0])
+			{
+				token.tokenType = TokenType::Triple;
+				return true;
+			}
+			else
+				return false;
+		case 4:
+			if (4 == counts[0])
+			{
+				token.tokenType = TokenType::Quadruple;
+				return true;
+			}
+			else if (3 == counts[0]) // && 1 == counts[1]
+			{
+				if (this->lastToken)
+					token.tokenType = TokenType::TripleWithSingle;
+				return true;
+			}
+			else
+				return false;
+		case 5:
+			if (5 == counts[0])
+			{
+				token.tokenType = TokenType::Quintuple;
+				return true;
+			}
+			else if (3 == counts[0] && 2 == counts[1])
+				if (JOKER_POINT == token.cards[3].point)
+					return false;
+				else
+				{
+					token.tokenType = TokenType::TripleWithPair;
+					return true;
+				}
+			else if (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true) == 1)
+			{
+				token.tokenType = TokenType::SingleStraight;
+				return true;
+			}
+			else
+				return false;
+		case 6:
+			if (4 == counts[0] && 1 == counts[1]) // && 1 == counts[2]
+			{
+				token.tokenType = TokenType::QuadrupleWithSingleSingle;
+				return true;
+			}
+			else
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true))
+				{
+				case 1:
+					token.tokenType = TokenType::SingleStraight;
+					return true;
+				case 2:
+					token.tokenType = TokenType::PairStraight;
+					return true;
+				case 3:
+					token.tokenType = TokenType::TripleStraight;
+					return true;
+				default:
+					return false;
+				}
+		case 7:
+			if (this->judgeStraight(token.cards, const vector<Point>{ 2 }, true) == 1)
+			{
+				token.tokenType = TokenType::SingleStraight;
+				return true;
+			}
+			else
+				return false;
+		case 8:
+
+		default:
+			return false;
+		}
+	}
+	
+public:
+	LandlordsX() : Landlords()
+	{
+		this->pokerType = "斗地主拓展版";
+	}
+};
+
 class Landlords4P : public PokerGame /* Previous: Landlords | Next: BigTwo */
 {
 private:
-	/* PokerGame::deal */
 	const bool assignDealer() override final
 	{
 		if (Status::Dealt == this->status && this->records.empty())
@@ -1498,11 +1823,11 @@ private:
 	{
 		return !cards.empty();
 	}
-	const bool processToken(Token& token) const override final
+	const bool processToken(Token& token, vector<Token>& possibleTokens) const override final
 	{
 		return true;
 	}
-	virtual const bool processAmounts(const Token& token) override final
+	virtual const bool processBasis(const Token& token) override final
 	{
 		if (Status::Assigned <= this->status && this->status <= Status::Started && this->amounts.size() == 1)
 		{
@@ -1521,6 +1846,27 @@ private:
 			}
 			return true;
 		}
+		else
+			return false;
+	}
+	virtual const bool computeAmounts() override final
+	{
+		if (Status::Over == this->status)
+			switch (this->amounts.size())
+			{
+			case 1:
+			{
+				if (this->players.size() != 4)
+					return false;
+				const Amount base = this->amounts[0];
+				this->amounts = vector<Amount>(4);
+				/////
+			}
+			case 4:
+				return true;
+			default:
+				return false;
+			}
 		else
 			return false;
 	}
@@ -1782,27 +2128,6 @@ public:
 		else
 			return false;
 	}
-	virtual const bool computeAmounts() override final
-	{
-		if (Status::Over == this->status)
-			switch (this->amounts.size())
-			{
-			case 1:
-			{
-				if (this->players.size() != 4)
-					return false;
-				const Amount base = this->amounts[0];
-				this->amounts = vector<Amount>(4);
-				/////
-			}
-			case 4:
-				return true;
-			default:
-				return false;
-			}
-		else
-			return false;
-	}
 	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return this->status >= Status::Assigned ? PokerGame::display(selectedPlayers, "地主", "地主牌：" + this->cards2string(this->deck, "", " | ", "（已公开）", "（空）") + "\n\n") : PokerGame::display(selectedPlayers, "拥有明牌", "地主牌：" + this->cards2string(this->deck, "", " | ", "（未公开）", "（空）") + "\n\n");
@@ -1812,9 +2137,59 @@ public:
 class BigTwo : public PokerGame /* Previous: Landlords4P | Next: ThreeTwoOne */
 {
 private:
-	const bool processToken(Token& token) const override final
+	const bool processToken(Token& token, vector<Token>& possibleTokens) const override final
 	{
 		return true;
+	}
+	virtual const bool computeAmounts() override final
+	{
+		if (Status::Over == this->status)
+			switch (this->amounts.size())
+			{
+			case 0:
+			{
+				if (this->players.size() != 4)
+					return false;
+				Count winnerCount = 0;
+				this->amounts = vector<Amount>(4);
+				for (size_t idx = 0; idx < 4; ++idx)
+				{
+					const size_t n = this->players[idx].size();
+					if (n <= 0)
+						++winnerCount;
+					else if (n < 8)
+						this->amounts[idx] = n;
+					else if (8 <= n && n < 10)
+						this->amounts[idx] = n << 1 << static_cast<size_t>(find(this->players[idx].begin(), this->players[idx].end(), Card{ 2, Suit::Spade }) != this->players[idx].end());
+					else if (10 <= n && n < 13)
+						this->amounts[idx] = (n * 3) << static_cast<size_t>(find(this->players[idx].begin(), this->players[idx].end(), Card{ 2, Suit::Spade }) != this->players[idx].end());
+					else if (13 == n)
+						this->amounts[idx] = n << 2 << static_cast<size_t>(find(this->players[idx].begin(), this->players[idx].end(), Card{ 2, Suit::Spade }) != this->players[idx].end());
+					else
+					{
+						this->amounts.clear();
+						return false;
+					}
+				}
+				if (1 == winnerCount)
+				{
+					const Amount s = this->amounts[0] + this->amounts[1] + this->amounts[2] + this->amounts[3];
+					for (size_t idx = 0; idx < 4; ++idx)
+						this->amounts[idx] = s - (this->amounts[idx] << 2);
+				}
+				else
+				{
+					this->amounts.clear();
+					return false;
+				}
+			}
+			case 4:
+				return true;
+			default:
+				return false;
+			}
+		else
+			return false;
 	}
 	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
@@ -1826,18 +2201,18 @@ private:
 			switch (this->lastToken.tokenType)
 			{
 			case TokenType::Single: // 单张
-			case TokenType::SingleFlushStraight: // 一条龙/同花顺（长度只能为 5）
+			case TokenType::SingleFlushStraight: // 一条龙|同花顺（长度只能为 5）
 			case TokenType::Pair: // 对子
 			case TokenType::Triple: // 三条
 			case TokenType::Quadruple: // 四个
 				return currentToken.tokenType == this->lastToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit));
-			case TokenType::SingleStraight: // 顺子（长度只能为 5）：可被一条龙/同花顺、金刚、葫芦/俘虏、同花以及比自己大的顺子盖过
+			case TokenType::SingleStraight: // 顺子（长度只能为 5）：可被一条龙|同花顺、金刚、葫芦|俘虏|副路、同花以及比自己大的顺子盖过
 				return TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::QuadrupleWithSingle == currentToken.tokenType || TokenType::TripleWithPair == currentToken.tokenType || TokenType::SingleFlush == currentToken.tokenType || (TokenType::SingleStraight == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
-			case TokenType::SingleFlush: // 同花（长度只能为 5）：可被一条龙/同花顺、金刚、葫芦/俘虏以及比自己大的同花盖过
+			case TokenType::SingleFlush: // 同花（长度只能为 5）：可被一条龙|同花顺、金刚、葫芦|俘虏|副路以及比自己大的同花盖过
 				return TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::QuadrupleWithSingle == currentToken.tokenType || TokenType::TripleWithPair == currentToken.tokenType || (TokenType::SingleFlush == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
-			case TokenType::TripleWithPair: // 葫芦/俘虏：可被一条龙/同花顺、金刚、以及比自己大的葫芦/俘虏盖过
+			case TokenType::TripleWithPair: // 葫芦|俘虏|副路：可被一条龙|同花顺、金刚、以及比自己大的葫芦|俘虏|副路盖过
 				return TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::QuadrupleWithSingle == currentToken.tokenType || (TokenType::TripleWithPair == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
-			case TokenType::QuadrupleWithSingle: // 金刚：可被一条龙/同花顺和比自己大的金刚盖过
+			case TokenType::QuadrupleWithSingle: // 金刚：可被一条龙|同花顺和比自己大的金刚盖过
 				return TokenType::SingleFlushStraight == currentToken.tokenType || (TokenType::QuadrupleWithSingle == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
 			default:
 				return false;
@@ -1917,56 +2292,6 @@ public:
 		else
 			return false;
 	}
-	virtual const bool computeAmounts() override final
-	{
-		if (Status::Over == this->status)
-			switch (this->amounts.size())
-			{
-			case 0:
-			{
-				if (this->players.size() != 4)
-					return false;
-				Count winnerCount = 0;
-				this->amounts = vector<Amount>(4);
-				for (size_t idx = 0; idx < 4; ++idx)
-				{
-					const size_t n = this->players[idx].size();
-					if (n <= 0)
-						++winnerCount;
-					else if (n < 8)
-						this->amounts[idx] = n;
-					else if (8 <= n && n < 10)
-						this->amounts[idx] = n << 1 << static_cast<size_t>(find(this->players[idx].begin(), this->players[idx].end(), Card{ 2, Suit::Spade }) != this->players[idx].end());
-					else if (10 <= n && n < 13)
-						this->amounts[idx] = (n * 3) << static_cast<size_t>(find(this->players[idx].begin(), this->players[idx].end(), Card{ 2, Suit::Spade }) != this->players[idx].end());
-					else if (13 == n)
-						this->amounts[idx] = n << 2 << static_cast<size_t>(find(this->players[idx].begin(), this->players[idx].end(), Card{ 2, Suit::Spade }) != this->players[idx].end());
-					else
-					{
-						this->amounts.clear();
-						return false;
-					}
-				}
-				if (1 == winnerCount)
-				{
-					const Amount s = this->amounts[0] + this->amounts[1] + this->amounts[2] + this->amounts[3];
-					for (size_t idx = 0; idx < 4; ++idx)
-						this->amounts[idx] = s - (this->amounts[idx] << 2);
-				}
-				else
-				{
-					this->amounts.clear();
-					return false;
-				}
-			}
-			case 4:
-				return true;
-			default:
-				return false;
-			}
-		else
-			return false;
-	}
 	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "方块3 先出", "");
@@ -1976,7 +2301,7 @@ public:
 class ThreeTwoOne : public PokerGame /* Previous: BigTwo | Next: Wuguapi */
 {
 private:
-	const bool processToken(Token& token) const override final
+	const bool processToken(Token& token, vector<Token>& possibleTokens) const override final
 	{
 		vector<Count> counts(14);
 		for (const Card& card : token.cards)
@@ -1984,6 +2309,8 @@ private:
 				++counts[card.point];
 			else
 				return false;
+		if (counts[0] > 4)
+			return false;
 		sort(token.cards.begin(), token.cards.end(), [&counts, this](const Card a, const Card b) { return counts[a.point] > counts[b.point] || (counts[a.point] == counts[b.point] && this->values[a.point] > this->values[b.point]) || (counts[a.point] == counts[b.point] && this->values[a.point] == this->values[b.point] && a.suit > b.suit); });
 		sort(counts.begin(), counts.end(), [](const Count a, const Count b) { return a > b; });
 		switch (token.cards.size())
@@ -2008,7 +2335,7 @@ private:
 				token.tokenType = TokenType::Triple;
 				return true;
 			}
-			else if (this->judgeStraight(token.cards) == 1)
+			else if (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false) == 1)
 			{
 				token.tokenType = TokenType::SingleStraight;
 				return true;
@@ -2022,7 +2349,7 @@ private:
 				return true;
 			}
 			else
-				switch (this->judgeStraight(token.cards))
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 				{
 				case 1:
 					token.tokenType = TokenType::SingleStraight;
@@ -2047,7 +2374,7 @@ private:
 				token.tokenType = TokenType::TripleWithPair;
 				return true;
 			}
-			else if (this->judgeStraight(token.cards) == 1)
+			else if (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false) == 1)
 			{
 				token.tokenType = TokenType::SingleStraight;
 				return true;
@@ -2062,27 +2389,13 @@ private:
 				token.tokenType = TokenType::TripleWithPairSingle;
 				return true;
 			}
-			else if (3 == counts[0] && 3 == counts[1])
-			{
-				if (this->values[token.cards[0].point] - this->values[token.cards[3].point] == 1)
-					token.tokenType = TokenType::TripleStraight;
-				else if (2 == token.cards[0].point && 3 == token.cards[3].point)
-				{
-					for (size_t idx = 0; idx < 3; ++idx)
-						swap(token.cards[idx], token.cards[idx + 3]);
-					token.tokenType = TokenType::TripleStraight;
-				}
-				else
-					token.tokenType = TokenType::TripleWithPairSingle;
-				return true;
-			}
 			else if (3 == counts[0] && 2 == counts[1]) // && 1 == counts[2]
 			{
 				token.tokenType = TokenType::TripleWithPairSingle;
 				return true;
 			}
 			else
-				switch (this->judgeStraight(token.cards))
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 				{
 				case 1:
 					token.tokenType = TokenType::SingleStraight;
@@ -2102,7 +2415,7 @@ private:
 				vector<Card> bodyCards(token.cards);
 				bodyCards.erase(bodyCards.begin() + 3);
 				this->sortCards(bodyCards, SortingMethod::FromManyToFew);
-				if (3 == this->judgeStraight(bodyCards))
+				if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards[3]);
 					token.cards = vector<Card>(bodyCards);
@@ -2115,7 +2428,7 @@ private:
 			else if (3 == counts[0] && 3 == counts[1]) // && 1 == counts[2]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (3 == this->judgeStraight(bodyCards))
+				if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = bodyCards;
@@ -2130,7 +2443,7 @@ private:
 				vector<Card> bodyCards(token.cards);
 				bodyCards.erase(bodyCards.begin() + 2);
 				this->sortCards(bodyCards, SortingMethod::FromManyToFew);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards[2]);
 					token.cards = vector<Card>(bodyCards);
@@ -2143,7 +2456,7 @@ private:
 			else if (2 == counts[0] && 2 == counts[1] && 2 == counts[2]) // && 1 == counts[3]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = bodyCards;
@@ -2153,7 +2466,7 @@ private:
 				else
 					return false;
 			}
-			else if (1 == this->judgeStraight(token.cards))
+			else if (1 == this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 			{
 				token.tokenType = TokenType::SingleStraight;
 				return true;
@@ -2161,7 +2474,7 @@ private:
 			else
 				return false;
 		case 8:
-			switch (this->judgeStraight(token.cards))
+			switch (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 			{
 			case 1:
 				token.tokenType = TokenType::SingleStraight;
@@ -2179,7 +2492,7 @@ private:
 			if (4 == counts[0] && 4 == counts[1]) // && 1 == counts[2]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (4 == this->judgeStraight(bodyCards))
+				if (4 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = vector<Card>(bodyCards);
@@ -2194,7 +2507,7 @@ private:
 				vector<Card> bodyCards(token.cards);
 				bodyCards.erase(bodyCards.begin() + 2);
 				this->sortCards(bodyCards, SortingMethod::FromManyToFew);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards[2]);
 					token.cards = vector<Card>(bodyCards);
@@ -2207,7 +2520,7 @@ private:
 			else if (2 == counts[0] && 2 == counts[1] && 2 == counts[2] && 2 == counts[3]) // && 1 == counts[4]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = vector<Card>(bodyCards);
@@ -2218,7 +2531,7 @@ private:
 					return false;
 			}
 			else
-				switch (this->judgeStraight(token.cards))
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 				{
 				case 1:
 					token.tokenType = TokenType::SingleStraight;
@@ -2235,7 +2548,7 @@ private:
 				vector<Card> bodyCards(token.cards);
 				bodyCards.erase(bodyCards.begin() + 3);
 				this->sortCards(bodyCards, SortingMethod::FromManyToFew);
-				if (3 == this->judgeStraight(bodyCards))
+				if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards[3]);
 					token.cards = vector<Card>(bodyCards);
@@ -2248,7 +2561,7 @@ private:
 			else if (3 == counts[0] && 3 == counts[1] && 3 == counts[2]) // && 1 == counts[3]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (3 == this->judgeStraight(bodyCards))
+				if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = vector<Card>(bodyCards);
@@ -2259,7 +2572,7 @@ private:
 					return false;
 			}
 			else
-				switch (this->judgeStraight(token.cards))
+				switch (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 				{
 				case 1:
 					token.tokenType = TokenType::SingleStraight;
@@ -2276,7 +2589,7 @@ private:
 				vector<Card> bodyCards(token.cards);
 				bodyCards.erase(bodyCards.begin() + 2);
 				this->sortCards(bodyCards, SortingMethod::FromManyToFew);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards[2]);
 					token.cards = vector<Card>(bodyCards);
@@ -2289,7 +2602,7 @@ private:
 			else if (2 == counts[0] && 2 == counts[1] && 2 == counts[2] && 2 == counts[3] && 2 == counts[4]) // && 1 == counts[5]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = vector<Card>(bodyCards);
@@ -2299,7 +2612,7 @@ private:
 				else
 					return false;
 			}
-			else if (1 == this->judgeStraight(token.cards))
+			else if (1 == this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 			{
 				token.tokenType = TokenType::SingleStraight;
 				return true;
@@ -2307,7 +2620,7 @@ private:
 			else
 				return false;
 		case 12:
-			switch (this->judgeStraight(token.cards))
+			switch (this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 			{
 			case 1:
 				token.tokenType = TokenType::SingleStraight;
@@ -2330,7 +2643,7 @@ private:
 				vector<Card> bodyCards(token.cards);
 				bodyCards.erase(bodyCards.begin() + 3);
 				this->sortCards(bodyCards, SortingMethod::FromManyToFew);
-				if (3 == this->judgeStraight(bodyCards))
+				if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards[3]);
 					token.cards = vector<Card>(bodyCards);
@@ -2343,7 +2656,7 @@ private:
 			else if (3 == counts[0] && 3 == counts[1] && 3 == counts[2] && 3 == counts[3]) // && 1 == counts[4]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (3 == this->judgeStraight(bodyCards))
+				if (3 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = vector<Card>(bodyCards);
@@ -2358,7 +2671,7 @@ private:
 				vector<Card> bodyCards(token.cards);
 				bodyCards.erase(bodyCards.begin() + 2);
 				this->sortCards(bodyCards, SortingMethod::FromManyToFew);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards[2]);
 					token.cards = vector<Card>(bodyCards);
@@ -2371,7 +2684,7 @@ private:
 			else if (2 == counts[0] && 2 == counts[1] && 2 == counts[2] && 2 == counts[3] && 2 == counts[4] && 2 == counts[5]) // && 1 == counts[6]
 			{
 				vector<Card> bodyCards(token.cards.begin(), token.cards.end() - 1);
-				if (2 == this->judgeStraight(bodyCards))
+				if (2 == this->judgeStraight(bodyCards, const vector<Point>{ 3, 13 }, false))
 				{
 					bodyCards.push_back(token.cards.back());
 					token.cards = vector<Card>(bodyCards);
@@ -2381,7 +2694,7 @@ private:
 				else
 					return false;
 			}
-			else if (1 == this->judgeStraight(token.cards))
+			else if (1 == this->judgeStraight(token.cards, const vector<Point>{ 3, 13 }, false))
 			{
 				token.tokenType = TokenType::SingleStraight;
 				return true;
@@ -2391,6 +2704,76 @@ private:
 		default:
 			return false;
 		}
+	}
+	virtual const bool computeAmounts() override final
+	{
+		if (Status::Over == this->status)
+			switch (this->amounts.size())
+			{
+			case 0:
+			{
+				if (this->players.size() != 4)
+					return false;
+				Player winner = INVALID_PLAYER;
+				this->amounts = vector<Amount>(4);
+				Amount s = 0;
+				for (size_t idx = 0; idx < 4; ++idx)
+				{
+					switch (this->players[idx].size())
+					{
+					case 0:
+						if (INVALID_PLAYER == winner)
+							winner = static_cast<Player>(idx);
+						else
+						{
+							this->amounts.clear();
+							return false;
+						}
+						break;
+					case 1:
+						break;
+					case 2:
+					case 3:
+					case 4:
+					case 5:
+						this->amounts[idx] = -1;
+						break;
+					case 6:
+					case 7:
+					case 8:
+					case 9:
+						this->amounts[idx] = -2;
+						break;
+					case 10:
+					case 11:
+					case 12:
+						this->amounts[idx] = -3;
+						break;
+					case 13:
+						this->amounts[idx] = -5;
+						break;
+					default:
+						this->amounts.clear();
+						return false;
+					}
+					s -= this->amounts[idx];
+				}
+				if (INVALID_PLAYER == winner)
+				{
+					this->amounts.clear();
+					return false;
+				}
+				else
+					this->amounts[winner] = s;
+			}
+			case 4:
+				return true;
+			default:
+				this->amounts.clear();
+				return false;
+			}
+		else
+			return false;
 	}
 	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
@@ -2500,76 +2883,6 @@ public:
 			return false;
 		}
 	}
-	virtual const bool computeAmounts() override final
-	{
-		if (Status::Over == this->status)
-			switch (this->amounts.size())
-			{
-			case 0:
-			{
-				if (this->players.size() != 4)
-					return false;
-				Player winner = INVALID_PLAYER;
-				this->amounts = vector<Amount>(4);
-				Amount s = 0;
-				for (size_t idx = 0; idx < 4; ++idx)
-				{
-					switch (this->players[idx].size())
-					{
-					case 0:
-						if (INVALID_PLAYER == winner)
-							winner = static_cast<Player>(idx);
-						else
-						{
-							this->amounts.clear();
-							return false;
-						}
-						break;
-					case 1:
-						break;
-					case 2:
-					case 3:
-					case 4:
-					case 5:
-						this->amounts[idx] = -1;
-						break;
-					case 6:
-					case 7:
-					case 8:
-					case 9:
-						this->amounts[idx] = -2;
-						break;
-					case 10:
-					case 11:
-					case 12:
-						this->amounts[idx] = -3;
-						break;
-					case 13:
-						this->amounts[idx] = -5;
-						break;
-					default:
-						this->amounts.clear();
-						return false;
-					}
-					s -= this->amounts[idx];
-				}
-				if (INVALID_PLAYER == winner)
-				{
-					this->amounts.clear();
-					return false;
-				}
-				else
-					this->amounts[winner] = s;
-			}
-			case 4:
-				return true;
-			default:
-				this->amounts.clear();
-				return false;
-			}
-		else
-			return false;
-	}
 	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "方块3 先出", "");
@@ -2579,7 +2892,7 @@ public:
 class Wuguapi : public PokerGame /* Previous: ThreeTwoOne | Next: Qiguiwueryi */
 {
 private:
-	const bool processToken(Token& token) const override final
+	const bool processToken(Token& token, vector<Token>& possibleTokens) const override final
 	{
 		vector<Count> counts(14);
 		for (const Card& card : token.cards)
@@ -2644,7 +2957,7 @@ private:
 				}
 			else
 			{
-				const bool isSingleStraight = this->judgeStraight(token.cards) == 1;
+				const bool isSingleStraight = this->judgeStraight(token.cards, const vector<Point>{ 2, 13 }, true) == 1;
 				bool isFlush = true;
 				const Suit suit = token.cards[0].suit;
 				for (size_t idx = 1; idx < 4; ++idx)
@@ -2674,7 +2987,7 @@ private:
 			}
 			else
 			{
-				const bool isSingleStraight = this->judgeStraight(token.cards) == 1;
+				const bool isSingleStraight = this->judgeStraight(token.cards, const vector<Point>{ 2, 13 }, true) == 1;
 				bool isFlush = true;
 				const Suit suit = token.cards[0].suit;
 				for (size_t idx = 1; idx < 5; ++idx)
@@ -2710,6 +3023,20 @@ private:
 		}
 		return false;
 	}
+	const bool computeAmounts() override final
+	{
+		if (Status::Over == this->status)
+		{
+			if (this->amounts.size() != this->players.size())
+			{
+
+				/////
+			}
+			return true;
+		}
+		else
+			return false;
+	}
 	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
 		return false;
@@ -2724,11 +3051,11 @@ private:
 			case TokenType::SingleStraight: // 顺子
 				switch (this->lastToken.cards.size())
 				{
-				case 3: // 可被一条龙/同花顺、三条、同花以及比自己大的顺子盖过
+				case 3: // 可被一条龙|同花顺、三条、同花以及比自己大的顺子盖过
 					return currentToken.cards.size() == this->lastToken.cards.size() && (TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::Triple == currentToken.tokenType || TokenType::SingleFlush == currentToken.tokenType || (TokenType::SingleStraight == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit))));
-				case 4: // 可被一条龙/同花顺、四条、同花以及比自己大的顺子盖过
+				case 4: // 可被一条龙|同花顺、四条、同花以及比自己大的顺子盖过
 					return currentToken.cards.size() == this->lastToken.cards.size() && (TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::Quadruple == currentToken.tokenType || TokenType::SingleFlush == currentToken.tokenType || (TokenType::SingleStraight == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit))));
-				case 5: // 可被一条龙/同花顺、金刚、葫芦/俘虏、同花以及比自己大的顺子盖过
+				case 5: // 可被一条龙|同花顺、金刚、葫芦|俘虏|副路、同花以及比自己大的顺子盖过
 					return currentToken.cards.size() == this->lastToken.cards.size() && (TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::QuadrupleWithSingle == currentToken.tokenType || TokenType::TripleWithPair == currentToken.tokenType || TokenType::SingleFlush == currentToken.tokenType || (TokenType::SingleStraight == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit))));
 				default:
 					return false;
@@ -2736,28 +3063,28 @@ private:
 			case TokenType::SingleFlush: // 同花
 				switch (this->lastToken.cards.size())
 				{
-				case 3: // 可被一条龙/同花顺、三条、以及比自己大的同花盖过
+				case 3: // 可被一条龙|同花顺、三条、以及比自己大的同花盖过
 					return currentToken.cards.size() == this->lastToken.cards.size() && (TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::Triple == currentToken.tokenType || (TokenType::SingleFlush == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit))));
-				case 4: // 可被一条龙/同花顺、四条、以及比自己大的同花盖过
+				case 4: // 可被一条龙|同花顺、四条、以及比自己大的同花盖过
 					return currentToken.cards.size() == this->lastToken.cards.size() && (TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::Quadruple == currentToken.tokenType || (TokenType::SingleFlush == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit))));
-				case 5: // 可被一条龙/同花顺、金刚、葫芦/俘虏、以及比自己大的同花盖过
+				case 5: // 可被一条龙|同花顺、金刚、葫芦|俘虏|副路、以及比自己大的同花盖过
 					return currentToken.cards.size() == this->lastToken.cards.size() && (TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::QuadrupleWithSingle == currentToken.tokenType || TokenType::TripleWithPair == currentToken.tokenType || (TokenType::SingleFlush == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit))));
 				default:
 					return false;
 				}
-			case TokenType::SingleFlushStraight: // 一条龙/同花顺
+			case TokenType::SingleFlushStraight: // 一条龙|同花顺
 				return currentToken.tokenType == this->lastToken.tokenType && currentToken.cards.size() == this->lastToken.cards.size() && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit));
 			case TokenType::Pair: // 对子
 				return TokenType::PairJokers == currentToken.tokenType || (currentToken.tokenType == this->lastToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
 			case TokenType::PairJokers: // 对鬼
 				return false;
-			case TokenType::Triple: // 三条：可被一条龙/同花顺和比自己大的三条盖过
+			case TokenType::Triple: // 三条：可被一条龙|同花顺和比自己大的三条盖过
 				return (TokenType::SingleFlushStraight == currentToken.tokenType && currentToken.cards.size() == 3) || (TokenType::Triple == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
-			case TokenType::TripleWithPair: // 葫芦/俘虏：可被一条龙/同花顺、金刚、以及比自己大的葫芦/俘虏盖过
+			case TokenType::TripleWithPair: // 葫芦|俘虏|副路：可被一条龙|同花顺、金刚、以及比自己大的葫芦|俘虏|副路盖过
 				return TokenType::SingleFlushStraight == currentToken.tokenType || TokenType::QuadrupleWithSingle == currentToken.tokenType || (TokenType::TripleWithPair == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
-			case TokenType::Quadruple: // 四条：可被一条龙/同花顺和比自己大的四条盖过
+			case TokenType::Quadruple: // 四条：可被一条龙|同花顺和比自己大的四条盖过
 				return (TokenType::SingleFlushStraight == currentToken.tokenType && currentToken.cards.size() == 4) || (TokenType::Quadruple == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
-			case TokenType::QuadrupleWithSingle: // 金刚：可被一条龙/同花顺和比自己大的金刚盖过
+			case TokenType::QuadrupleWithSingle: // 金刚：可被一条龙|同花顺和比自己大的金刚盖过
 				return TokenType::SingleFlushStraight == currentToken.tokenType || (TokenType::QuadrupleWithSingle == currentToken.tokenType && (this->values[currentToken.cards[0].point] > this->values[this->lastToken.cards[0].point] || (currentToken.cards[0].point == this->lastToken.cards[0].point && currentToken.cards[0].suit > this->lastToken.cards[0].suit)));
 			default:
 				return false;
@@ -2841,20 +3168,6 @@ public:
 		else
 			return false;
 	}
-	const bool computeAmounts() override final
-	{
-		if (Status::Over == this->status)
-		{
-			if (this->amounts.size() != this->players.size())
-			{
-
-				/////
-			}
-			return true;
-		}
-		else
-			return false;
-	}
 	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "最小先出", "牌堆（自下往上）：" + this->cards2string(this->deck, "", " | ", "", "（空）") + "\n\n");
@@ -2864,7 +3177,7 @@ public:
 class Qiguiwueryi : public PokerGame /* Previous: ThreeTwoOne | Next: Qiguiwuersan */
 {
 private:
-	const bool processToken(Token& token) const override final
+	const bool processToken(Token& token, vector<Token>& possibleTokens) const override final
 	{
 		vector<Count> counts(14);
 		for (const Card& card : token.cards)
@@ -2924,6 +3237,20 @@ private:
 			return true;
 		}
 		return false;
+	}
+	const bool computeAmounts() override final
+	{
+		if (Status::Over == this->status)
+		{
+			if (this->amounts.size() != this->players.size())
+			{
+
+				/////
+			}
+			return true;
+		}
+		else
+			return false;
 	}
 	virtual const bool isAbsolutelyLargest(const Token& token) const override final
 	{
@@ -3028,20 +3355,6 @@ public:
 		else
 			return false;
 	}
-	const bool computeAmounts() override final
-	{
-		if (Status::Over == this->status)
-		{
-			if (this->amounts.size() != this->players.size())
-			{
-
-				/////
-			}
-			return true;
-		}
-		else
-			return false;
-	}
 	const bool display(const vector<Player>& selectedPlayers) const override final
 	{
 		return PokerGame::display(selectedPlayers, "最小先出", "牌堆（自下往上）：" + this->cards2string(this->deck, "", " | ", "", "（空）") + "\n\n");
@@ -3105,6 +3418,7 @@ private:
 	const vector<string> returnStatements = { "Return", "返回", "返回主面板", "返回主界面" };
 	const vector<string> exitStatements = { "Exit", "Ctrl+C", "Ctrl + C", "退出", "退出程序" };
 
+	/* Command line handling */
 	const bool isEqual(const string& s1, const string& s2) const // Please use == directly if cases cannot be ignored
 	{
 		if (s1.length() == s2.length())
@@ -3155,7 +3469,11 @@ private:
 			this->replaceAll(_pokerType, "1", "一");
 			this->replaceAll(_pokerType, "三人斗地主", "斗地主");
 			this->replaceAll(_pokerType, "欢乐斗地主", "斗地主");
+			this->replaceAll(_pokerType, "竞技二打一扑克", "斗地主");
+			this->replaceAll(_pokerType, "竞技二打一", "斗地主");
+			this->replaceAll(_pokerType, "二打一", "斗地主");
 			this->replaceAll(_pokerType, "大老二", "锄大地");
+			this->replaceAll(_pokerType, "锄大弟", "锄大地");
 		}
 		return;
 	}
@@ -3216,6 +3534,8 @@ private:
 			return 1 == this->helpKey;
 		}
 	}
+
+	/* Interactive handling */
 	const int clearScreen() const
 	{
 #if defined _WIN32 || defined _WIN64
@@ -3235,8 +3555,9 @@ private:
 			description.pop_back();
 		return;
 	}
-	const size_t fetchPlayerCount(size_t lowerBound, size_t upperBound) const // lowerBound cannot be 0
+	const size_t fetchPlayerCount(const size_t _lowerBound, const size_t upperBound) const // lowerBound must be not smaller than 2
 	{
+		const size_t lowerBound = _lowerBound >= 2 ? _lowerBound : 2;
 		if (lowerBound <= this->playerCount && this->playerCount <= upperBound)
 			return this->playerCount;
 		else
@@ -3317,6 +3638,8 @@ private:
 		else
 			return false;
 	}
+
+	/* Action confirmation */
 	const bool ensureAction(const string& buffer, const string& actionDescriptioin) const
 	{
 		string repeatedBuffer{};
@@ -3352,6 +3675,8 @@ private:
 		}
 		return false;
 	}
+
+	/* Procedures */
 	const bool setLandlord(Action& action) const
 	{
 		Player player = INVALID_PLAYER;
@@ -3620,6 +3945,7 @@ public:
 				this->fetchPokerType();
 				if (this->playerCount ? this->pokerGame->initialize(this->playerCount) : this->pokerGame->initialize())
 				{
+					/* Beginning */
 					this->clearScreen();
 					cout << "当前牌局（" << this->pokerType << "）已初始化，但暂未开局，请发牌或录入残局数据。" << endl << "请输入“/”并按下回车键开局，或录入残局库数据：";
 					for (;;)
@@ -3642,7 +3968,7 @@ public:
 						}
 					}
 
-					/* setLandlord(4P) */
+					/* PokerGame::setLandlord(4P) */
 					Action action = Action::None;
 					if ("斗地主" == this->pokerType)
 						this->setLandlord(action);
@@ -3660,7 +3986,7 @@ public:
 						break;
 					}
 
-					/* start */
+					/* PokerGame::start */
 					this->start(action);
 					switch (action)
 					{
@@ -3674,7 +4000,7 @@ public:
 						break;
 					}
 
-					/* play */
+					/* PokerGame::play */
 					this->play(action);
 					switch (action)
 					{
@@ -3688,10 +4014,10 @@ public:
 						break;
 					}
 
-					/* over */
+					/* Ending */
 					this->clearScreen();
 					this->pokerGame->display();
-					cout << "此局已终，请按 A 键再来一局，按 E 键退出程序，按其它键更改扑克牌游戏：";
+					cout << "此局已终，请按 A 键回车再来一局，按 E 键回车退出程序，按其它键回车更改扑克牌游戏：";
 					rewind(stdin);
 					fflush(stdin);
 					switch (getchar())
