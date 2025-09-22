@@ -2523,6 +2523,26 @@ private:
 				token.tokenType = TokenType::TripleWithPairSingle; // 三两一
 				return true;
 			}
+			else if (3 == counts[0] && 3 == counts[1])
+			{
+				vector<PossibleToken> allPossibleTokens{};
+				if (this->values[token.cards[3].point] + 1 == this->values[token.cards[0].point])
+				{
+					Token proposedToken(token);
+					proposedToken.tokenType = TokenType::TripleStraight;
+					char buffers[2][3] = { { 0 } };
+					snprintf(buffers[0], 3, "%d", token.cards[0].point);
+					snprintf(buffers[1], 3, "%d", token.cards[3].point);
+					allPossibleTokens.push_back(PossibleToken{ proposedToken, (string)"解析为不拖不带、长度为 2 且大小为 " + buffers[0] + " 的三顺" + buffers[1] + "（``TokenType::TripleStraight``）" });
+					proposedToken.tokenType = TokenType::TripleWithPairSingle;
+					allPossibleTokens.push_back(PossibleToken{ proposedToken, (string)"解析为三条 " + buffers[0] + " 的三两一，两为一对 " + buffers[1] + "，一为一张 " + buffers[1] + "（``TokenType::TripleWithPairSingle``）"});
+					rotate(proposedToken.cards.begin(), proposedToken.cards.begin() + 3, proposedToken.cards.end());
+					allPossibleTokens.push_back(PossibleToken{ proposedToken, (string)"解析为三条 " + buffers[1] + " 的三两一，两为一对 " + buffers[0] + "，一为一张 " + buffers[0] + "（``TokenType::TripleWithPairSingle``）"});
+
+				}
+				if (possibleTokens.size() == 1)
+
+			}
 			else if (3 == counts[0] && 2 == counts[1]) // && 1 == counts[2]
 			{
 				token.tokenType = TokenType::TripleWithPairSingle; // 三两一
